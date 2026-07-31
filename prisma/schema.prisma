@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("customer")
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+}
+
+model Product {
+  id         String      @id @default(cuid())
+  name       String
+  slug       String      @unique
+  description String
+  price      Float
+  compareAt  Float?
+  images     String   @default("[]")
+  sizes      String   @default("[]")
+  colors     String   @default("[]")
+  colorSelectable Boolean @default(true)
+  stock      Int         @default(0)
+  categoryId String?
+  category   Category?   @relation(fields: [categoryId], references: [id])
+  featured   Boolean     @default(false)
+  published  Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  orderItems OrderItem[]
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderCode     String?     @unique
+  email         String
+  name          String
+  address       String
+  city          String
+  state         String
+  zip           String
+  country       String      @default("NG")
+  phone         String?
+  items         OrderItem[]
+  subtotal      Float
+  shipping      Float       @default(0)
+  discount      Float?
+  total         Float
+  status        String      @default("pending")
+  paymentMethod String      @default("manual")
+  paymentStatus String      @default("pending")
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  size      String
+  color     String  @default("Default")
+  price     Float
+}
+
+model DiscountCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  type       String
+  value      Float
+  minOrder   Float?
+  active     Boolean   @default(true)
+  usageLimit Int?
+  usedCount  Int       @default(0)
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+}
