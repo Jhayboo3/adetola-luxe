@@ -1,4 +1,4 @@
-INSERT OR IGNORE INTO User VALUES('cmrki0nh00000r7jxf07huwqb','preciousadetola78@gmail.com','Admin','$2b$12$EWGTZ8aqxUTjEo2raB1UfutZ4n/AWeRnjuJB/JVjX7MB86eMmy9ty','admin',1784024320212);
+INSERT INTO User VALUES('cmrki0nh00000r7jxf07huwqb','jeremiahoshiokhame@gmail.com','Jeremiah Momoh','$2b$12$EWGTZ8aqxUTjEo2raB1UfutZ4n/AWeRnjuJB/JVjX7MB86eMmy9ty','admin',1784024320212) ON CONFLICT(email) DO UPDATE SET role = 'admin';
 INSERT OR IGNORE INTO Category VALUES('cmrki0nh50001r7jxxg4thqd9','Ready-to-Wear','ready-to-wear','Everyday elegance crafted for the modern wardrobe.',1784024320217);
 INSERT OR IGNORE INTO Category VALUES('cmrki0nh50002r7jxz8fpgp60','Evening','evening','Statement pieces for evening occasions.',1784024320218);
 INSERT OR IGNORE INTO Category VALUES('cmrki0nh60003r7jxnqkot6ns','Outerwear','outerwear','Structured layers for the discerning.',1784024320219);
