@@ -16,8 +16,20 @@ model User {
   name      String
   password  String
   role      String   @default("customer")
+  phone     String?
+  whatsapp String?
+  gender    String?
+  address   String?
+  state     String?
+  city      String?
+  zip       String?
+  deliveryInfo String?
+  measurementUnit String @default("inches")
+  measurements String @default("{}")
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   passwordResetTokens PasswordResetToken[]
+  orders Order[]
 }
 
 model PasswordResetToken {
@@ -56,6 +68,8 @@ model Product {
   colors     String   @default("[]")
   colorSelectable Boolean @default(true)
   stock      Int         @default(0)
+  clothingType String?
+  targetGender String @default("Unisex")
   categoryId String?
   category   Category?   @relation(fields: [categoryId], references: [id])
   featured   Boolean     @default(false)
@@ -76,6 +90,15 @@ model Order {
   zip           String
   country       String      @default("NG")
   phone         String?
+  whatsapp      String?
+  deliveryInfo String?
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+  checkoutToken String?     @unique
+  gender        String?
+  measurementUnit String?
+  measurementSnapshot String @default("{}")
+  measurementCapturedAt DateTime?
   items         OrderItem[]
   subtotal      Float
   shipping      Float       @default(0)
@@ -87,6 +110,8 @@ model Order {
   notes         String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  @@index([userId])
 }
 
 model OrderItem {

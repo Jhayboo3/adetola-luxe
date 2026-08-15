@@ -72,12 +72,12 @@ export default function Header() {
             </Link>
           )}
           {session ? (
-            <button
+            <><Link href="/account/profile" className="font-body text-[11px] font-medium uppercase tracking-[2px] text-black no-underline transition-colors hover:text-primary">Profile</Link><button
               onClick={() => signOut({ callbackUrl: "/" })}
               className="font-body text-[11px] font-medium uppercase tracking-[2px] text-black cursor-pointer bg-transparent border-none hover:text-primary"
             >
               Sign Out
-            </button>
+            </button></>
           ) : (
             <Link
               href="/login"
@@ -136,7 +136,7 @@ export default function Header() {
               </Link>
             )}
             {session ? (
-              <button
+              <><Link href="/account/profile" className="font-body text-[11px] font-medium uppercase tracking-[2px] text-black no-underline" onClick={() => setMobileOpen(false)}>Profile</Link><button
                 onClick={() => {
                   setMobileOpen(false);
                   signOut({ callbackUrl: "/" });
@@ -144,7 +144,7 @@ export default function Header() {
                 className="font-body text-[11px] font-medium uppercase tracking-[2px] text-black text-left bg-transparent border-none cursor-pointer"
               >
                 Sign Out
-              </button>
+              </button></>
             ) : (
               <Link
                 href="/login"

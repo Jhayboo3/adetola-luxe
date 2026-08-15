@@ -13,6 +13,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
     prisma.product.findMany({
       where: {
         published: true,
+        stock: { gt: 0 },
         AND: [
           query ? { OR: [{ name: { contains: query } }, { description: { contains: query } }] } : {},
           category ? { OR: [{ category: { slug: category } }, { category: { parent: { slug: category } } }] } : {},

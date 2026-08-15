@@ -21,12 +21,12 @@ export const useCart = create<CartStore>()(
       addItem: (item) => {
         const items = get().items;
         const existing = items.find(
-          (i) => i.productId === item.productId && i.size === item.size
+          (i) => i.productId === item.productId && i.size === item.size && i.color === item.color
         );
         if (existing) {
           set({
             items: items.map((i) =>
-              i.productId === item.productId && i.size === item.size
+              i.productId === item.productId && i.size === item.size && i.color === item.color
                 ? { ...i, quantity: i.quantity + item.quantity }
                 : i
             ),

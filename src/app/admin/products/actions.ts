@@ -71,6 +71,8 @@ async function productData(formData: FormData, existingImages: string[] = []) {
     colors: JSON.stringify(formData.getAll("colors").map(String).map((v) => v.trim()).filter(Boolean)),
     colorSelectable: formData.get("colorSelectable") === "on",
     stock,
+    clothingType: text(formData, "clothingType") || null,
+    targetGender: ["Male", "Female", "Unisex"].includes(text(formData, "targetGender")) ? text(formData, "targetGender") : "Unisex",
     categoryId: text(formData, "categoryId") || null,
     featured: formData.get("featured") === "on",
     published: formData.get("published") === "on",

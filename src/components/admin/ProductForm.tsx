@@ -10,7 +10,7 @@ import type { ProductFormState } from "@/app/admin/products/actions";
 type ProductValue = {
   name: string; slug: string; description: string; price: number; compareAt: number | null;
   stock: number; categoryId: string | null; images: string; sizes: string; colors: string;
-  colorSelectable: boolean; featured: boolean; published: boolean;
+  colorSelectable: boolean; featured: boolean; published: boolean; clothingType: string | null; targetGender: string;
 };
 
 const availableColors = ["Black", "White", "Cream", "Brown", "Gold", "Green", "Blue", "Red", "Pink", "Purple", "Orange", "Yellow", "Grey", "Silver", "Multi-colour"];
@@ -35,6 +35,10 @@ export default function ProductForm({ action, product, categories }: {
       <div className="grid gap-6 md:grid-cols-2">
         <Input id="name" name="name" label="Clothing Name" defaultValue={product?.name} required />
         <Input id="slug" name="slug" label="URL Slug (optional)" defaultValue={product?.slug} placeholder="Generated from the name" />
+      </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Input id="clothingType" name="clothingType" label="Clothing Type" defaultValue={product?.clothingType ?? ""} placeholder="e.g. Long Sleeve Shirt" />
+        <div className="flex flex-col gap-2"><label htmlFor="targetGender" className="font-body text-[12px] font-medium text-muted">Gender / Target Customer</label><select id="targetGender" name="targetGender" defaultValue={product?.targetGender ?? "Unisex"} className="h-[46px] border-b border-black bg-white font-body text-[14px] outline-none focus:border-gold"><option>Unisex</option><option>Male</option><option>Female</option></select></div>
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="description" className="font-body text-[12px] font-medium text-muted">Description</label>
