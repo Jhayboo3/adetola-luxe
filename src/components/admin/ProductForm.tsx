@@ -66,14 +66,14 @@ export default function ProductForm({ action, product, categories }: {
         </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="image" className="font-body text-[12px] font-medium text-muted">Clothing Image (JPG, PNG or WebP; max 5 MB)</label>
-          <input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) setPreview(URL.createObjectURL(file)); }} className="font-body text-[13px]" />
+          <input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) setPreview(URL.createObjectURL(file)); }} className="max-w-full font-body text-[13px]" />
         </div>
       </div>
       <div className="flex flex-wrap gap-6 font-body text-[13px]">
         <label className="flex items-center gap-2"><input name="published" type="checkbox" defaultChecked={product?.published ?? true} /> Visible in shop</label>
         <label className="flex items-center gap-2"><input name="featured" type="checkbox" defaultChecked={product?.featured ?? false} /> Featured product</label>
       </div>
-      <div className="mt-2 flex gap-4">
+      <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:gap-4">
         <Button type="submit" disabled={pending}>{pending ? "Saving..." : product ? "Save Changes" : "Upload Clothing"}</Button>
         <Link href="/admin/products" className="inline-flex items-center px-6 font-body text-[13px] uppercase tracking-[1px] text-black no-underline">Cancel</Link>
       </div>

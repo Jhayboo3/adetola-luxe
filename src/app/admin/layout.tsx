@@ -57,15 +57,15 @@ export default function AdminLayout({
         </nav>
       </aside>
 
-      <div className="flex-1 bg-white">
-        <header className="flex h-16 items-center justify-between border-b border-line bg-white px-8">
+      <div className="min-w-0 flex-1 bg-white">
+        <header className="flex min-h-16 items-center justify-between gap-3 border-b border-line bg-white px-4 py-3 sm:px-6 md:px-8">
           <div className="flex items-center gap-4 md:hidden">
             <span className="font-heading text-base text-black">
               Adetola Admin
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="font-body text-[11px] text-muted">
+            <span className="hidden font-body text-[11px] text-muted sm:inline">
               {session?.user?.name || "Admin"}
             </span>
             <button
@@ -76,7 +76,18 @@ export default function AdminLayout({
             </button>
           </div>
         </header>
-        <div className="p-8">{children}</div>
+        <nav className="flex gap-2 overflow-x-auto border-b border-line bg-black px-4 py-3 md:hidden">
+          {sidebarLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`shrink-0 rounded-full px-4 py-2 font-body text-[10px] uppercase tracking-[1.5px] no-underline ${pathname === link.href ? "bg-gold text-black" : "bg-white/10 text-white"}`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="min-w-0 p-4 sm:p-6 md:p-8">{children}</div>
       </div>
     </div>
   );
