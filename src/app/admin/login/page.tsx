@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
@@ -72,6 +73,9 @@ export default function AdminLoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          <div className="text-right">
+            <Link href="/forgot-password" className="font-body text-[12px] text-muted underline hover:text-black">Forgot password?</Link>
+          </div>
           <Button type="submit" fullWidth disabled={loading}>
             {loading ? "Signing in..." : "Sign In"}
           </Button>
