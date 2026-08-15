@@ -11,6 +11,13 @@
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "adetola-luxe-db",
+			"database_id": "d4bbf853-c750-4833-a8a2-aa2b4c1d4a26"
+		}
+	],
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name

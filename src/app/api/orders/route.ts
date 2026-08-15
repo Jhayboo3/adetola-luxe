@@ -36,13 +36,11 @@ export async function POST(request: Request) {
     };
     const subtotal = requested.reduce((sum, item) => sum + byId.get(item.productId)!.price * item.quantity, 0);
     const orderCode = await createOrderCode();
-    const order = await prisma.$transaction(async (tx) => {
-      for (const item of requested) {
-        const updated = await tx.product.updateMany({ where: { id: item.productId, stock: { gte: item.quantity } }, data: { stock: { decrement: item.quantity } } });
-        if (!updated.count) throw new Error(`${byId.get(item.productId)!.name} just sold out.`);
-      }
-      return tx.order.create({ data: { orderCode, email, name, phone: body.phone?.trim() || null, address, city, state, zip, subtotal, total: subtotal, paymentMethod: "whatsapp", items: { create: requested.map((item) => ({ productId: item.productId, quantity: item.quantity, size: item.size || "One Size", color: orderColor(item), price: byId.get(item.productId)!.price })) } }, include: { items: { include: { product: true } } } });
-    });
+    for (const item of requested) {
+      const updated = await prisma.product.updateMany({ where: { id: item.productId, stock: { gte: item.quantity } }, data: { stock: { decrement: item.quantity } } });
+      if (!updated.count) throw new Error(`${byId.get(item.productId)!.name} just sold out.`);
+    }
+    const order = await prisma.order.create({ data: { orderCode, email, name, phone: body.phone?.trim() || null, address, city, state, zip, subtotal, total: subtotal, paymentMethod: "whatsapp", items: { create: requested.map((item) => ({ productId: item.productId, quantity: item.quantity, size: item.size || "One Size", color: orderColor(item), price: byId.get(item.productId)!.price })) } }, include: { items: { include: { product: true } } } });
     const itemSections = order.items.map((item) => [
       item.product.name,
       `Size: ${sizeNames[item.size.toUpperCase()] ?? item.size}`,
