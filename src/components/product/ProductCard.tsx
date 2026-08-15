@@ -20,7 +20,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <article className="group flex h-full min-w-0 flex-col">
       <Link href={`/shop/${product.slug}`} className="block no-underline">
-        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[16px] bg-line shadow-[0_8px_28px_rgba(15,42,34,0.07)] sm:rounded-[20px] md:rounded-[26px]">
+        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[16px] bg-line shadow-[0_8px_28px_rgba(15,42,34,0.07)] sm:rounded-[20px] md:rounded-[26px]">
         {product.images?.[0] ? (
           <Image src={product.images[0]} alt={product.name} fill sizes="(max-width: 767px) 50vw, (max-width: 1279px) 33vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" unoptimized />
         ) : <div className="flex h-full w-full items-center justify-center bg-[#E5DDD3] transition-transform duration-500 group-hover:scale-[1.03]">
@@ -45,7 +45,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           {product.colors?.length ? <p className="line-clamp-1"><span className="font-semibold text-black">Colours:</span> {product.colors.join(" · ")}</p> : null}
           {typeof product.stock === "number" && <p className={product.stock > 0 ? "text-primary" : "text-red-700"}>{product.stock > 0 ? `${product.stock <= 5 ? "Low stock" : "In stock"} · ${product.stock} available` : "Sold out"}</p>}
         </div>
-        <Link href={`/shop/${product.slug}`} className="mt-4 inline-flex min-h-10 items-center justify-center rounded-full border border-primary px-3 py-2 text-center font-body text-[9px] font-semibold uppercase tracking-[1px] text-primary no-underline transition-colors hover:bg-primary hover:text-white sm:text-[10px]">View Product</Link>
+        <Link href={`/shop/${product.slug}`} className="cta-secondary mt-4 min-h-11 px-3 py-2 text-[9px] sm:text-[10px]">View Product</Link>
       </div>
     </article>
   );

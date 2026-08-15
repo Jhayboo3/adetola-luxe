@@ -37,7 +37,7 @@ export default function HeroSection() {
 
           <Link
             href="/shop"
-            className="mt-10 inline-flex h-[48px] items-center rounded-full bg-gold px-8 font-body text-[13px] font-semibold uppercase tracking-[1px] text-black no-underline transition-all hover:-translate-y-0.5 hover:bg-gold-dark"
+            className="cta-primary mt-10"
           >
             Shop the Collection
           </Link>

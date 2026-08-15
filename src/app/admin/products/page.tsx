@@ -13,7 +13,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
     <div>
       <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div><h1 className="font-heading text-[24px] font-medium text-black">Clothing</h1><p className="mt-1 font-body text-[13px] text-muted">Upload and manage your clothing collection</p></div>
-        <Link href="/admin/products/new" className="w-full bg-gold px-6 py-3 text-center font-body text-[13px] font-semibold uppercase tracking-[1px] text-black no-underline sm:w-auto">Add Clothing</Link>
+        <Link href="/admin/products/new" className="cta-primary w-full sm:w-auto">Add Clothing</Link>
       </div>
       {Number.isInteger(uploaded) && uploaded > 0 && <p className="mb-6 border border-green-200 bg-green-50 p-4 font-body text-[13px] text-green-800">{uploaded} clothing {uploaded === 1 ? "item" : "items"} uploaded successfully. The full catalogue has been refreshed.</p>}
       {products.length === 0 ? (
@@ -28,7 +28,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
             <td className="px-6 py-4 font-body text-[13px] text-muted">{formatPrice(product.price)}</td>
             <td className="px-6 py-4 font-body text-[13px] text-muted">{product.stock}</td>
             <td className="px-6 py-4 font-body text-[11px] uppercase tracking-[2px]">{product.published ? <span className="text-primary">Published</span> : <span className="text-muted">Draft</span>}</td>
-            <td className="px-6 py-4"><div className="flex items-center gap-4"><Link href={`/admin/products/${product.id}`} className="font-body text-[11px] uppercase tracking-[2px] text-primary no-underline">Edit</Link><form action={deleteProduct}><input type="hidden" name="id" value={product.id} /><button className="font-body text-[11px] uppercase tracking-[2px] text-red-700">Delete</button></form></div></td>
+            <td className="px-6 py-4"><div className="flex items-center gap-3"><Link href={`/admin/products/${product.id}`} className="cta-secondary min-h-9 px-3 py-2 text-[9px]">Edit</Link><form action={deleteProduct}><input type="hidden" name="id" value={product.id} /><button className="cta-danger min-h-9 px-3 py-2 text-[9px]">Delete</button></form></div></td>
           </tr>;
         })}</tbody></table></div>
       )}

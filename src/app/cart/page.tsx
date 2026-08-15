@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCart } from "@/store/cart";
 import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
+import Image from "next/image";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotal } = useCart();
@@ -21,7 +22,7 @@ export default function CartPage() {
           </p>
           <Link
             href="/shop"
-            className="mt-8 inline-flex h-[46px] items-center bg-gold px-8 font-body text-[13px] font-semibold uppercase tracking-[1px] text-black no-underline transition-all hover:bg-gold-dark"
+            className="cta-primary mt-8"
           >
             Browse the Archive
           </Link>
@@ -47,12 +48,8 @@ export default function CartPage() {
                 key={item.id}
                 className="flex gap-6 border-b border-line pb-8"
               >
-                <div className="h-24 w-20 flex-shrink-0 bg-line md:h-32 md:w-28">
-                  <div className="flex h-full w-full items-center justify-center bg-[#E5DDD3]">
-                    <span className="font-body text-[9px] text-muted">
-                      Img
-                    </span>
-                  </div>
+                <div className="relative aspect-[3/4] w-20 flex-shrink-0 overflow-hidden rounded-xl bg-line md:w-28">
+                  {item.image ? <Image src={item.image} alt={item.name} fill sizes="112px" className="object-cover" unoptimized /> : <div className="flex h-full w-full items-center justify-center bg-[#E5DDD3]"><span className="font-body text-[9px] text-muted">Image</span></div>}
                 </div>
 
                 <div className="flex flex-1 flex-col justify-between">
@@ -135,7 +132,7 @@ export default function CartPage() {
 
               <Link
                 href="/shop"
-                className="mt-4 block text-center font-body text-[11px] uppercase tracking-[2px] text-primary no-underline transition-colors hover:text-primary-light"
+                className="cta-secondary mt-4 w-full"
               >
                 Continue Browsing
               </Link>

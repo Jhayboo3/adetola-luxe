@@ -41,7 +41,7 @@ export default async function OrderConfirmationPage({
         <div className="mt-10">
           <Link
             href="/shop"
-            className="inline-flex h-[46px] items-center bg-gold px-8 font-body text-[13px] font-semibold uppercase tracking-[1px] text-black no-underline transition-all hover:bg-gold-dark"
+            className="cta-primary"
           >
             Continue Exploring
           </Link>

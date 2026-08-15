@@ -47,11 +47,11 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
           {category && <input type="hidden" name="category" value={category} />}
           <label htmlFor="shop-search" className="sr-only">Search clothing</label>
           <input id="shop-search" name="q" type="search" defaultValue={query} placeholder="Search dresses, kaftans, accessories..." className="min-w-0 flex-1 rounded-full border border-line bg-white px-5 py-3 font-body text-[13px] outline-none transition-colors focus:border-primary" />
-          <button className="rounded-full bg-primary px-6 py-3 font-body text-[11px] font-semibold uppercase tracking-[1px] text-white transition-colors hover:bg-primary-dark">Search</button>
+          <button className="cta-primary min-h-11 px-6 py-3">Search</button>
           {query && <Link href={category ? `/shop?category=${category}` : "/shop"} className="self-center font-body text-[11px] text-muted no-underline">Clear</Link>}
         </form>
 
-        <div className="mt-10 flex flex-wrap gap-3">
+        <div id="categories" className="mt-10 flex scroll-mt-28 flex-wrap gap-3">
           {[{ name: "All", slug: "" }, ...categories].map((cat) => (
             <Link
               key={cat.slug || "all"}

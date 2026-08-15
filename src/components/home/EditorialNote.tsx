@@ -13,7 +13,7 @@ export default function EditorialNote() {
 
         <Link
           href="/about"
-          className="mt-10 inline-flex rounded-full border border-gold/60 px-6 py-3 font-body text-[11px] font-medium uppercase tracking-[2px] text-gold no-underline transition-colors hover:bg-gold hover:text-black"
+          className="cta-secondary mt-10 border-gold text-gold hover:bg-gold hover:text-black"
         >
           Our Story
         </Link>

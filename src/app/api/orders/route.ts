@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       const size = item.size || "One Size";
       if (sizes.length && !sizes.includes(size)) throw new Error(`Choose an available size for ${product.name}.`);
       let color = "As shown";
-      if (product.colorSelectable) {
+      if (product.colorSelectable && parseJsonArray(product.colors).length > 0) {
         color = displayColor(item.color || "");
         if (!parseJsonArray(product.colors).map(displayColor).includes(color)) throw new Error(`Choose an available colour for ${product.name}.`);
       }

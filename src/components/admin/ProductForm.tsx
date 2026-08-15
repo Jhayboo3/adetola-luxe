@@ -83,7 +83,7 @@ export default function ProductForm({ action, product, categories }: {
       </div>
       <div className="grid gap-4 md:grid-cols-[minmax(0,360px)_1fr] md:items-end">
         <div className="grid grid-cols-2 gap-2">
-          {previews.length ? previews.map((preview, index) => <div key={`${preview}-${index}`} className="relative aspect-[4/5] overflow-hidden rounded-xl bg-line"><Image src={preview} alt={`Product preview ${index + 1}`} fill className="object-cover" unoptimized /></div>) : <div className="col-span-2 flex aspect-[4/3] items-center justify-center rounded-xl bg-line font-body text-[11px] text-muted">No images selected</div>}
+          {previews.length ? previews.map((preview, index) => <div key={`${preview}-${index}`} className="relative aspect-[3/4] overflow-hidden rounded-xl bg-line"><Image src={preview} alt={`Product preview ${index + 1}`} fill sizes="180px" className="object-cover" unoptimized /></div>) : <div className="col-span-2 flex aspect-[3/4] items-center justify-center rounded-xl bg-line font-body text-[11px] text-muted">No images selected</div>}
         </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="imagePicker" className="font-body text-[12px] font-medium text-muted">Clothing Images (up to 20; JPG, PNG or WebP; max 5 MB each)</label>
