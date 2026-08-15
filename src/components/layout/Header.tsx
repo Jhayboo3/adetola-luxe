@@ -16,6 +16,7 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const itemCount = useCart((s) => s.getItemCount());
   const { data: session } = useSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
 
   return (
     <header className="sticky top-0 z-50 mx-2 mt-2 rounded-[20px] border border-line/70 bg-white/95 shadow-[0_8px_30px_rgba(15,42,34,0.06)] backdrop-blur-md md:mx-4 md:rounded-[24px]">
@@ -62,6 +63,14 @@ export default function Header() {
               </span>
             )}
           </Link>
+          {isAdmin && (
+            <Link
+              href="/admin/dashboard"
+              className="font-body text-[11px] font-semibold uppercase tracking-[2px] text-primary no-underline transition-colors hover:text-black"
+            >
+              Admin
+            </Link>
+          )}
           {session ? (
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
@@ -117,6 +126,15 @@ export default function Header() {
             >
               Cart ({itemCount})
             </Link>
+            {isAdmin && (
+              <Link
+                href="/admin/dashboard"
+                className="font-body text-[11px] font-semibold uppercase tracking-[2px] text-primary no-underline"
+                onClick={() => setMobileOpen(false)}
+              >
+                Admin Dashboard
+              </Link>
+            )}
             {session ? (
               <button
                 onClick={() => {
