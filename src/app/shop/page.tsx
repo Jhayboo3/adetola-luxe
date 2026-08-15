@@ -10,8 +10,8 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   const query = params.q?.trim() ?? "";
   const category = params.category?.trim() ?? "";
   const [records, categories] = await Promise.all([
-    prisma.product.findMany({ where: { published: true, ...(query ? { OR: [{ name: { contains: query } }, { description: { contains: query } }] } : {}), ...(category ? { category: { slug: category } } : {}) }, orderBy: { createdAt: "desc" } }),
-    prisma.category.findMany({ orderBy: { name: "asc" }, select: { name: true, slug: true } }),
+    prisma.product.findMany({ where: { published: true, ...(query ? { OR: [{ name: { contains: query } }, { description: { contains: query } }] } : {}), ...(category ? { OR: [{ category: { slug: category } }, { category: { parent: { slug: category } } }] } : {}) }, orderBy: { createdAt: "desc" } }),
+    prisma.category.findMany({ orderBy: [{ parentId: "asc" }, { name: "asc" }], select: { name: true, slug: true, parent: { select: { name: true } } } }),
   ]);
   const products = records.map((product) => ({ ...product, images: parseJsonArray(product.images) }));
   return (
@@ -46,7 +46,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
                   : "text-muted hover:text-primary"
               }`}
             >
-              {cat.name}
+              {"parent" in cat && cat.parent ? `${cat.parent.name} → ${cat.name}` : cat.name}
             </Link>
           ))}
         </div>

@@ -36,7 +36,12 @@ model Category {
   slug        String    @unique
   description String?
   products    Product[]
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
   createdAt   DateTime  @default(now())
+
+  @@index([parentId])
 }
 
 model Product {

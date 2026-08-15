@@ -34,6 +34,17 @@ async function saveImage(file: File) {
   return `/api/product-images/${key}`;
 }
 
+async function saveImages(files: File[], existingImages: string[]) {
+  const uploads = files.filter((file) => file.size > 0);
+  if (uploads.length > 8) throw new Error("Choose no more than 8 images at once.");
+  if (uploads.length + existingImages.length > 10) throw new Error("A product can have up to 10 images.");
+  for (const file of uploads) {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Use only JPG, PNG, or WebP images.");
+    if (file.size > 5 * 1024 * 1024) throw new Error(`${file.name} must be smaller than 5 MB.`);
+  }
+  return Promise.all(uploads.map(saveImage));
+}
+
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
@@ -47,7 +58,7 @@ async function productData(formData: FormData, existingImages: string[] = []) {
   if (!Number.isFinite(price) || price <= 0) throw new Error("Enter a valid price greater than zero.");
   if (!Number.isInteger(stock) || stock < 0) throw new Error("Stock must be a whole number of zero or more.");
 
-  const image = await saveImage(formData.get("image") as File);
+  const images = await saveImages(formData.getAll("images") as File[], existingImages);
   const compareAtText = text(formData, "compareAt");
   return {
     name,
@@ -55,7 +66,7 @@ async function productData(formData: FormData, existingImages: string[] = []) {
     description,
     price,
     compareAt: compareAtText ? Number(compareAtText) : null,
-    images: JSON.stringify(image ? [image, ...existingImages] : existingImages),
+    images: JSON.stringify([...images.filter((image): image is string => Boolean(image)), ...existingImages]),
     sizes: JSON.stringify(text(formData, "sizes").split(",").map((v) => v.trim()).filter(Boolean)),
     colors: JSON.stringify(formData.getAll("colors").map(String).map((v) => v.trim()).filter(Boolean)),
     colorSelectable: formData.get("colorSelectable") === "on",

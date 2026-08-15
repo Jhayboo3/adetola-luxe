@@ -7,6 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 const sidebarLinks = [
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/categories", label: "Categories" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/discounts", label: "Discounts" },
 ];

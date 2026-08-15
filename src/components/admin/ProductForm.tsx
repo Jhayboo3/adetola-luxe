@@ -18,12 +18,12 @@ const availableColors = ["Black", "White", "Cream", "Brown", "Gold", "Green", "B
 export default function ProductForm({ action, product, categories }: {
   action: (state: ProductFormState, data: FormData) => Promise<ProductFormState>;
   product?: ProductValue;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; parent: { name: string } | null }[];
 }) {
   const [state, formAction, pending] = useActionState(action, {});
-  const [preview, setPreview] = useState<string | null>(() => {
-    if (!product) return null;
-    try { return (JSON.parse(product.images) as string[])[0] ?? null; } catch { return null; }
+  const [previews, setPreviews] = useState<string[]>(() => {
+    if (!product) return [];
+    try { return JSON.parse(product.images) as string[]; } catch { return []; }
   });
   const [colorSelectable, setColorSelectable] = useState(product?.colorSelectable ?? true);
   const selectedColors = (() => { try { return product ? (JSON.parse(product.colors) as string[]).map((color) => ({ "#005C29": "Green", "#000000": "Black", "#D4AF37": "Gold", "#FFFFFF": "White" }[color] ?? color)) : []; } catch { return []; } })();
@@ -57,16 +57,17 @@ export default function ProductForm({ action, product, categories }: {
         <label htmlFor="categoryId" className="font-body text-[12px] font-medium text-muted">Category</label>
         <select id="categoryId" name="categoryId" defaultValue={product?.categoryId ?? ""} className="h-[46px] border-b border-black bg-white font-body text-[14px] outline-none focus:border-gold">
           <option value="">No category</option>
-          {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          {categories.map((category) => <option key={category.id} value={category.id}>{category.parent ? `${category.parent.name} → ${category.name}` : category.name}</option>)}
         </select>
       </div>
-      <div className="grid gap-4 md:grid-cols-[180px_1fr] md:items-end">
-        <div className="relative aspect-[4/5] overflow-hidden bg-line">
-          {preview ? <Image src={preview} alt="Product preview" fill className="object-cover" unoptimized /> : <span className="flex h-full items-center justify-center font-body text-[11px] text-muted">No image</span>}
+      <div className="grid gap-4 md:grid-cols-[minmax(0,360px)_1fr] md:items-end">
+        <div className="grid grid-cols-2 gap-2">
+          {previews.length ? previews.map((preview, index) => <div key={`${preview}-${index}`} className="relative aspect-[4/5] overflow-hidden rounded-xl bg-line"><Image src={preview} alt={`Product preview ${index + 1}`} fill className="object-cover" unoptimized /></div>) : <div className="col-span-2 flex aspect-[4/3] items-center justify-center rounded-xl bg-line font-body text-[11px] text-muted">No images selected</div>}
         </div>
         <div className="flex flex-col gap-2">
-          <label htmlFor="image" className="font-body text-[12px] font-medium text-muted">Clothing Image (JPG, PNG or WebP; max 5 MB)</label>
-          <input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) setPreview(URL.createObjectURL(file)); }} className="max-w-full font-body text-[13px]" />
+          <label htmlFor="images" className="font-body text-[12px] font-medium text-muted">Clothing Images (up to 8 at once; JPG, PNG or WebP; max 5 MB each)</label>
+          <input id="images" name="images" type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => { const files = Array.from(event.target.files || []); if (files.length) setPreviews((current) => [...files.map((file) => URL.createObjectURL(file)), ...current]); }} className="max-w-full cursor-pointer rounded-xl border border-line bg-white p-2 font-body text-[12px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold file:px-4 file:py-2 file:font-body file:text-[11px] file:font-semibold file:uppercase file:tracking-[1px] file:text-black hover:file:bg-primary hover:file:text-white" />
+          <p className="font-body text-[11px] text-muted">New images are added before existing images. The first image is used as the catalogue cover.</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-6 font-body text-[13px]">

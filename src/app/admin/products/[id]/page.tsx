@@ -8,7 +8,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const [product, categories] = await Promise.all([
     prisma.product.findUnique({ where: { id } }),
-    prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.category.findMany({ orderBy: [{ parentId: "asc" }, { name: "asc" }], select: { id: true, name: true, parent: { select: { name: true } } } }),
   ]);
   if (!product) notFound();
   const action = updateProduct.bind(null, id);
