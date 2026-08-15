@@ -68,6 +68,7 @@ export default function ProductForm({ action, product, categories }: {
           <label htmlFor="images" className="font-body text-[12px] font-medium text-muted">Clothing Images (up to 8 at once; JPG, PNG or WebP; max 5 MB each)</label>
           <input id="images" name="images" type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => { const files = Array.from(event.target.files || []); if (files.length) setPreviews((current) => [...files.map((file) => URL.createObjectURL(file)), ...current]); }} className="max-w-full cursor-pointer rounded-xl border border-line bg-white p-2 font-body text-[12px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold file:px-4 file:py-2 file:font-body file:text-[11px] file:font-semibold file:uppercase file:tracking-[1px] file:text-black hover:file:bg-primary hover:file:text-white" />
           <p className="font-body text-[11px] text-muted">New images are added before existing images. The first image is used as the catalogue cover.</p>
+          <p className="rounded-lg bg-[#F7F2E8] px-3 py-2 font-body text-[11px] leading-relaxed text-black">These images are different views of one product. For a different design, pattern, or style to have its own shop card, create a separate clothing product.</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-6 font-body text-[13px]">

@@ -5,7 +5,11 @@ interface Product {
   name: string;
   price: number;
   slug: string;
+  description: string;
+  stock: number;
   images?: string[];
+  sizes?: string[];
+  colors?: string[];
 }
 
 interface ProductGridProps {
@@ -14,7 +18,7 @@ interface ProductGridProps {
 
 export default function ProductGrid({ products }: ProductGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:gap-x-6 xl:grid-cols-4">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

@@ -1,7 +1,7 @@
 import ProductGrid from "@/components/product/ProductGrid";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { parseJsonArray } from "@/lib/utils";
+import { displayColor, parseJsonArray } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -10,21 +10,36 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   const query = params.q?.trim() ?? "";
   const category = params.category?.trim() ?? "";
   const [records, categories] = await Promise.all([
-    prisma.product.findMany({ where: { published: true, ...(query ? { OR: [{ name: { contains: query } }, { description: { contains: query } }] } : {}), ...(category ? { OR: [{ category: { slug: category } }, { category: { parent: { slug: category } } }] } : {}) }, orderBy: { createdAt: "desc" } }),
+    prisma.product.findMany({
+      where: {
+        published: true,
+        AND: [
+          query ? { OR: [{ name: { contains: query } }, { description: { contains: query } }] } : {},
+          category ? { OR: [{ category: { slug: category } }, { category: { parent: { slug: category } } }] } : {},
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+    }),
     prisma.category.findMany({ orderBy: [{ parentId: "asc" }, { name: "asc" }], select: { name: true, slug: true, parent: { select: { name: true } } } }),
   ]);
-  const products = records.map((product) => ({ ...product, images: parseJsonArray(product.images) }));
+  const products = records.map((product) => ({
+    ...product,
+    images: parseJsonArray(product.images),
+    sizes: parseJsonArray(product.sizes),
+    colors: product.colorSelectable ? parseJsonArray(product.colors).map(displayColor) : [],
+  }));
+  const selectedCategory = categories.find((item) => item.slug === category);
   return (
     <div className="py-16 md:py-20">
       <div className="mx-auto max-w-[1200px] px-8">
         <div className="mb-4 h-[2px] w-12 bg-gold" />
 
         <h1 className="font-heading text-[28px] font-medium text-black">
-          The Archive
+          {selectedCategory?.name ?? "The Archive"}
         </h1>
 
         <p className="mt-2 font-body text-[13px] text-muted">
-          {products.length} {products.length === 1 ? "piece" : "pieces"}{query ? ` found for “${query}”` : ""}
+          {products.length} {products.length === 1 ? "product" : "products"} displayed{query ? ` for “${query}”` : ""}
         </p>
 
         <form id="catalog-search" className="mt-8 flex max-w-2xl gap-3 scroll-mt-28">
@@ -55,7 +70,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
           <ProductGrid products={products} />
         </div>
 
-        {products.length === 0 && <div className="py-16 text-center"><p className="font-heading text-[18px] text-black">No matching pieces found</p><p className="mt-2 font-body text-[13px] text-muted">Try another name or browse all collections.</p><Link href="/shop" className="mt-5 inline-block font-body text-[11px] uppercase tracking-[2px] text-primary">View all clothing</Link></div>}
+        {products.length === 0 && <div className="py-16 text-center"><p className="font-heading text-[18px] text-black">{category && !query ? "No products are currently available in this category." : "No matching products found."}</p><p className="mt-2 font-body text-[13px] text-muted">Try another name or browse all collections.</p><Link href="/shop" className="mt-5 inline-block font-body text-[11px] uppercase tracking-[2px] text-primary">View all clothing</Link></div>}
       </div>
     </div>
   );
