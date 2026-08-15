@@ -1,9 +1,6 @@
 "use server";
 
-import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-import { v2 as cloudinary } from "cloudinary";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
@@ -25,19 +22,16 @@ async function saveImage(file: File) {
   if (!allowedTypes.includes(file.type)) throw new Error("Use a JPG, PNG, or WebP image.");
   if (file.size > 5 * 1024 * 1024) throw new Error("The image must be smaller than 5 MB.");
 
-  if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-    cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
-    const dataUri = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
-    const uploaded = await cloudinary.uploader.upload(dataUri, { folder: "adetola-luxe/products", resource_type: "image" });
-    return uploaded.secure_url;
-  }
-
   const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
-  const filename = `${randomUUID()}.${extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(path.join(uploadDir, filename), Buffer.from(await file.arrayBuffer()));
-  return `/uploads/products/${filename}`;
+  const key = `products/${crypto.randomUUID()}.${extension}`;
+  const { env } = await getCloudflareContext({ async: true });
+  await env.PRODUCT_IMAGES.put(key, await file.arrayBuffer(), {
+    httpMetadata: {
+      contentType: file.type,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+  });
+  return `/api/product-images/${key}`;
 }
 
 function text(formData: FormData, key: string) {

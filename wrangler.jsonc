@@ -18,6 +18,12 @@
 			"database_id": "d4bbf853-c750-4833-a8a2-aa2b4c1d4a26"
 		}
 	],
+	"r2_buckets": [
+		{
+			"binding": "PRODUCT_IMAGES",
+			"bucket_name": "adetola-luxe-product-images"
+		}
+	],
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
