@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
+import { separateProductIdentity, uploadFileKey } from "@/lib/product-upload";
 
-export type ProductFormState = { error?: string };
+export type ProductFormState = { error?: string; success?: string; completedFiles?: string[] };
 
 async function requireAdmin() {
   const session = await auth();
@@ -31,12 +32,12 @@ async function saveImage(file: File) {
       cacheControl: "public, max-age=31536000, immutable",
     },
   });
-  return `/api/product-images/${key}`;
+  return { key, url: `/api/product-images/${key}` };
 }
 
 async function saveImages(files: File[], existingImages: string[]) {
   const uploads = files.filter((file) => file.size > 0);
-  if (uploads.length > 8) throw new Error("Choose no more than 8 images at once.");
+  if (uploads.length > 20) throw new Error("Choose no more than 20 images at once.");
   if (uploads.length + existingImages.length > 10) throw new Error("A product can have up to 10 images.");
   for (const file of uploads) {
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Use only JPG, PNG, or WebP images.");
@@ -49,7 +50,7 @@ function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
-async function productData(formData: FormData, existingImages: string[] = []) {
+function baseProductData(formData: FormData) {
   const name = text(formData, "name");
   const description = text(formData, "description");
   const price = Number(text(formData, "price"));
@@ -58,7 +59,6 @@ async function productData(formData: FormData, existingImages: string[] = []) {
   if (!Number.isFinite(price) || price <= 0) throw new Error("Enter a valid price greater than zero.");
   if (!Number.isInteger(stock) || stock < 0) throw new Error("Stock must be a whole number of zero or more.");
 
-  const images = await saveImages(formData.getAll("images") as File[], existingImages);
   const compareAtText = text(formData, "compareAt");
   return {
     name,
@@ -66,7 +66,6 @@ async function productData(formData: FormData, existingImages: string[] = []) {
     description,
     price,
     compareAt: compareAtText ? Number(compareAtText) : null,
-    images: JSON.stringify([...images.filter((image): image is string => Boolean(image)), ...existingImages]),
     sizes: JSON.stringify(text(formData, "sizes").split(",").map((v) => v.trim()).filter(Boolean)),
     colors: JSON.stringify(formData.getAll("colors").map(String).map((v) => v.trim()).filter(Boolean)),
     colorSelectable: formData.get("colorSelectable") === "on",
@@ -79,18 +78,59 @@ async function productData(formData: FormData, existingImages: string[] = []) {
   };
 }
 
+async function productData(formData: FormData, existingImages: string[] = []) {
+  const base = baseProductData(formData);
+  const images = await saveImages(formData.getAll("images") as File[], existingImages);
+  return { ...base, images: JSON.stringify([...images.filter((image): image is { key: string; url: string } => Boolean(image)).map((image) => image.url), ...existingImages]) };
+}
+
 export async function createProduct(_state: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  let created = 0;
+  const completedFiles: string[] = [];
+  const failures: string[] = [];
   try {
     await requireAdmin();
-    const data = await productData(formData);
-    await prisma.product.create({ data });
+    const base = baseProductData(formData);
+    const files = (formData.getAll("images") as File[]).filter((file) => file.size > 0);
+    const separateProducts = formData.get("separateProducts") === "on";
+    if (files.length > 20) return { error: "Choose no more than 20 clothing images at once." };
+
+    if (!separateProducts) {
+      const data = await productData(formData);
+      await prisma.product.create({ data });
+      created = 1;
+    } else {
+      if (!files.length) return { error: "Choose at least one clothing image." };
+      const results = await Promise.allSettled(files.map(async (file, index) => {
+        let uploaded: { key: string; url: string } | null = null;
+        try {
+          uploaded = await saveImage(file);
+          if (!uploaded) throw new Error("The file was empty.");
+          const identity = separateProductIdentity(base.name, text(formData, "slug"), file.name, index, files.length);
+          await prisma.product.create({ data: { ...base, ...identity, images: JSON.stringify([uploaded.url]) } });
+          return { file: uploadFileKey(file) };
+        } catch (error) {
+          if (uploaded) {
+            const { env } = await getCloudflareContext({ async: true });
+            await env.PRODUCT_IMAGES.delete(uploaded.key).catch(() => undefined);
+          }
+          throw new Error(`${file.name}: ${error instanceof Error ? error.message : "upload failed"}`);
+        }
+      }));
+      for (const result of results) {
+        if (result.status === "fulfilled") { created++; completedFiles.push(result.value.file); }
+        else failures.push(result.reason instanceof Error ? result.reason.message : "Upload failed.");
+      }
+    }
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unique constraint")) return { error: "That slug is already in use." };
     return { error: error instanceof Error ? error.message : "Could not create product." };
   }
   revalidatePath("/admin/products");
   revalidatePath("/shop");
-  redirect("/admin/products");
+  revalidatePath("/");
+  if (failures.length) return { success: `${created} clothing ${created === 1 ? "item" : "items"} uploaded successfully.`, error: `${failures.length} ${failures.length === 1 ? "upload" : "uploads"} failed: ${failures.join(" ")}`, completedFiles };
+  redirect(`/admin/products?uploaded=${created}`);
 }
 
 export async function updateProduct(id: string, _state: ProductFormState, formData: FormData): Promise<ProductFormState> {

@@ -6,7 +6,8 @@ import { deleteProduct } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminProductsPage() {
+export default async function AdminProductsPage({ searchParams }: { searchParams: Promise<{ uploaded?: string }> }) {
+  const uploaded = Number((await searchParams).uploaded ?? 0);
   const products = await prisma.product.findMany({ orderBy: { createdAt: "desc" } });
   return (
     <div>
@@ -14,6 +15,7 @@ export default async function AdminProductsPage() {
         <div><h1 className="font-heading text-[24px] font-medium text-black">Clothing</h1><p className="mt-1 font-body text-[13px] text-muted">Upload and manage your clothing collection</p></div>
         <Link href="/admin/products/new" className="w-full bg-gold px-6 py-3 text-center font-body text-[13px] font-semibold uppercase tracking-[1px] text-black no-underline sm:w-auto">Add Clothing</Link>
       </div>
+      {Number.isInteger(uploaded) && uploaded > 0 && <p className="mb-6 border border-green-200 bg-green-50 p-4 font-body text-[13px] text-green-800">{uploaded} clothing {uploaded === 1 ? "item" : "items"} uploaded successfully. The full catalogue has been refreshed.</p>}
       {products.length === 0 ? (
         <div className="border border-dashed border-line px-6 py-16 text-center"><p className="font-heading text-[18px]">No clothing uploaded yet</p><p className="mt-2 font-body text-[13px] text-muted">Add your first piece to make it available in the shop.</p></div>
       ) : (
