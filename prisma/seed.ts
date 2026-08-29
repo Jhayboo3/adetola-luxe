@@ -18,12 +18,13 @@ async function main() {
   });
 
   // The platform's first store. Owner is the admin/seller account.
+  // "TNC Collections" is a store on the Larkvine marketplace, not the platform itself.
   const store = await prisma.store.upsert({
-    where: { slug: "larkvine" },
+    where: { slug: "tnc-collections" },
     update: { ownerId: admin.id },
     create: {
-      name: "Larkvine",
-      slug: "larkvine",
+      name: "TNC Collections",
+      slug: "tnc-collections",
       logo: null,
       whatsapp: "2347011033320",
       phone: "2347011033320",
