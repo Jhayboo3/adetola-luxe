@@ -30,6 +30,26 @@ model User {
   updatedAt DateTime @updatedAt
   passwordResetTokens PasswordResetToken[]
   orders Order[]
+  stores Store[]
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products    Product[]
+  categories  Category[]
+  orders      Order[]
+  orderItems  OrderItem[]
+  discountCodes DiscountCode[]
+
+  @@index([ownerId])
 }
 
 model PasswordResetToken {
@@ -44,8 +64,10 @@ model PasswordResetToken {
 
 model Category {
   id          String    @id @default(cuid())
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   name        String
-  slug        String    @unique
+  slug        String
   description String?
   products    Product[]
   parentId    String?
@@ -54,12 +76,15 @@ model Category {
   createdAt   DateTime  @default(now())
 
   @@index([parentId])
+  @@unique([storeId, slug])
 }
 
 model Product {
   id         String      @id @default(cuid())
+  storeId    String
+  store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   name       String
-  slug       String      @unique
+  slug       String
   description String
   price      Float
   compareAt  Float?
@@ -77,11 +102,16 @@ model Product {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   orderItems OrderItem[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, categoryId])
 }
 
 model Order {
   id            String      @id @default(cuid())
-  orderCode     String?     @unique
+  storeId       String
+  store         Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderCode     String?
   email         String
   name          String
   address       String
@@ -94,11 +124,12 @@ model Order {
   deliveryInfo String?
   userId        String?
   user          User?       @relation(fields: [userId], references: [id])
-  checkoutToken String?     @unique
+  checkoutToken String?
   gender        String?
   measurementUnit String?
   measurementSnapshot String @default("{}")
   measurementCapturedAt DateTime?
+  size          String?
   items         OrderItem[]
   subtotal      Float
   shipping      Float       @default(0)
@@ -112,10 +143,15 @@ model Order {
   updatedAt     DateTime    @updatedAt
 
   @@index([userId])
+  @@index([storeId])
+  @@unique([storeId, orderCode])
+  @@unique([storeId, checkoutToken])
 }
 
 model OrderItem {
   id        String  @id @default(cuid())
+  storeId   String
+  store     Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orderId   String
   order     Order   @relation(fields: [orderId], references: [id])
   productId String
@@ -124,11 +160,15 @@ model OrderItem {
   size      String
   color     String  @default("Default")
   price     Float
+
+  @@index([storeId])
 }
 
 model DiscountCode {
   id         String    @id @default(cuid())
-  code       String    @unique
+  storeId    String
+  store      Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  code       String
   type       String
   value      Float
   minOrder   Float?
@@ -137,4 +177,6 @@ model DiscountCode {
   usedCount  Int       @default(0)
   expiresAt  DateTime?
   createdAt  DateTime  @default(now())
+
+  @@unique([storeId, code])
 }

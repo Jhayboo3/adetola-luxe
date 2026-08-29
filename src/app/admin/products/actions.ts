@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 import { separateProductIdentity, uploadFileKey } from "@/lib/product-upload";
+import { requireStore } from "@/lib/store";
 
 export type ProductFormState = { error?: string; success?: string; completedFiles?: string[] };
 
@@ -90,6 +91,7 @@ export async function createProduct(_state: ProductFormState, formData: FormData
   const failures: string[] = [];
   try {
     await requireAdmin();
+    const store = await requireStore();
     const base = baseProductData(formData);
     const files = (formData.getAll("images") as File[]).filter((file) => file.size > 0);
     const separateProducts = formData.get("separateProducts") === "on";
@@ -97,7 +99,7 @@ export async function createProduct(_state: ProductFormState, formData: FormData
 
     if (!separateProducts) {
       const data = await productData(formData);
-      await prisma.product.create({ data });
+      await prisma.product.create({ data: { ...data, storeId: store.id } });
       created = 1;
     } else {
       if (!files.length) return { error: "Choose at least one clothing image." };
@@ -107,7 +109,7 @@ export async function createProduct(_state: ProductFormState, formData: FormData
           uploaded = await saveImage(file);
           if (!uploaded) throw new Error("The file was empty.");
           const identity = separateProductIdentity(base.name, text(formData, "slug"), file.name, index, files.length);
-          await prisma.product.create({ data: { ...base, ...identity, images: JSON.stringify([uploaded.url]) } });
+          await prisma.product.create({ data: { ...base, ...identity, storeId: store.id, images: JSON.stringify([uploaded.url]) } });
           return { file: uploadFileKey(file) };
         } catch (error) {
           if (uploaded) {
@@ -136,10 +138,11 @@ export async function createProduct(_state: ProductFormState, formData: FormData
 export async function updateProduct(id: string, _state: ProductFormState, formData: FormData): Promise<ProductFormState> {
   try {
     await requireAdmin();
-    const current = await prisma.product.findUnique({ where: { id } });
+    const store = await requireStore();
+    const current = await prisma.product.findFirst({ where: { id, storeId: store.id } });
     if (!current) return { error: "Product not found." };
     const data = await productData(formData, JSON.parse(current.images));
-    await prisma.product.update({ where: { id }, data });
+    await prisma.product.update({ where: { id, storeId: store.id }, data });
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unique constraint")) return { error: "That slug is already in use." };
     return { error: error instanceof Error ? error.message : "Could not update product." };
@@ -151,10 +154,11 @@ export async function updateProduct(id: string, _state: ProductFormState, formDa
 
 export async function deleteProduct(formData: FormData) {
   await requireAdmin();
+  const store = await requireStore();
   const id = text(formData, "id");
-  const orderCount = await prisma.orderItem.count({ where: { productId: id } });
-  if (orderCount) await prisma.product.update({ where: { id }, data: { published: false } });
-  else await prisma.product.delete({ where: { id } });
+  const orderCount = await prisma.orderItem.count({ where: { productId: id, storeId: store.id } });
+  if (orderCount) await prisma.product.update({ where: { id, storeId: store.id }, data: { published: false } });
+  else await prisma.product.delete({ where: { id, storeId: store.id } });
   revalidatePath("/admin/products");
   revalidatePath("/shop");
 }

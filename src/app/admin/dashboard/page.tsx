@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
+import { requireStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
+  const store = await requireStore();
   const [revenue, orderCount, productCount, lowStock, recent] = await Promise.all([
-    prisma.order.aggregate({ where: { status: { not: "cancelled" } }, _sum: { total: true } }),
-    prisma.order.count(), prisma.product.count(), prisma.product.count({ where: { stock: { lte: 3 }, published: true } }),
-    prisma.order.findMany({ take: 5, orderBy: { createdAt: "desc" } }),
+    prisma.order.aggregate({ where: { storeId: store.id, status: { not: "cancelled" } }, _sum: { total: true } }),
+    prisma.order.count({ where: { storeId: store.id } }), prisma.product.count({ where: { storeId: store.id } }), prisma.product.count({ where: { storeId: store.id, stock: { lte: 3 }, published: true } }),
+    prisma.order.findMany({ where: { storeId: store.id }, take: 5, orderBy: { createdAt: "desc" } }),
   ]);
   const stats = [{ label: "Order Revenue", value: formatPrice(revenue._sum.total ?? 0) }, { label: "Orders", value: String(orderCount) }, { label: "Products", value: String(productCount) }, { label: "Low Stock", value: String(lowStock) }];
   return <div className="min-w-0"><div className="mb-8"><h1 className="font-heading text-[24px] font-medium">Dashboard</h1><p className="mt-1 font-body text-[13px] text-muted">Live overview of your archive</p></div><div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-4">{stats.map((stat) => <div key={stat.label} className="min-w-0 border border-line p-4 sm:p-6"><p className="font-body text-[10px] uppercase tracking-[1.5px] text-muted sm:text-[11px] sm:tracking-[2px]">{stat.label}</p><p className="mt-2 break-words font-heading text-[20px] sm:text-[24px]">{stat.value}</p></div>)}</div>

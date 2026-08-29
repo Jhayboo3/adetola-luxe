@@ -24,6 +24,15 @@ export const FEMALE_MEASUREMENTS = [
 export type Gender = "Male" | "Female";
 export type Measurements = Record<string, number>;
 
+// The pre-set garment sizes offered at checkout. Replaces the previous
+// per-order detailed body-measurement capture.
+export const GARMENT_SIZES = ["L", "M", "XL", "XXL", "XXXL"] as const;
+export type GarmentSize = (typeof GARMENT_SIZES)[number];
+
+export function isGarmentSize(value: string | undefined | null): value is GarmentSize {
+  return !!value && (GARMENT_SIZES as readonly string[]).includes(value);
+}
+
 export function measurementFields(gender: string | null | undefined) {
   return gender === "Male" ? MALE_MEASUREMENTS : gender === "Female" ? FEMALE_MEASUREMENTS : [];
 }

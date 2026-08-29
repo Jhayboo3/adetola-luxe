@@ -3,12 +3,14 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import ProductForm from "@/components/admin/ProductForm";
 import { updateProduct } from "../actions";
+import { requireStore } from "@/lib/store";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const store = await requireStore();
   const [product, categories] = await Promise.all([
-    prisma.product.findUnique({ where: { id } }),
-    prisma.category.findMany({ orderBy: [{ parentId: "asc" }, { name: "asc" }], select: { id: true, name: true, parent: { select: { name: true } } } }),
+    prisma.product.findFirst({ where: { id, storeId: store.id } }),
+    prisma.category.findMany({ where: { storeId: store.id }, orderBy: [{ parentId: "asc" }, { name: "asc" }], select: { id: true, name: true, parent: { select: { name: true } } } }),
   ]);
   if (!product) notFound();
   const action = updateProduct.bind(null, id);

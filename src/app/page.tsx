@@ -4,13 +4,15 @@ import NewArrivals from "@/components/home/NewArrivals";
 import EditorialNote from "@/components/home/EditorialNote";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray } from "@/lib/utils";
+import { defaultStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const store = await defaultStore();
   const [products, categories] = await Promise.all([
-    prisma.product.findMany({ where: { published: true, stock: { gt: 0 } }, orderBy: { createdAt: "desc" }, take: 8 }),
-    prisma.category.findMany({ include: { products: { where: { published: true, stock: { gt: 0 } }, orderBy: { createdAt: "desc" }, take: 1 } }, take: 3 }),
+    prisma.product.findMany({ where: { storeId: store.id, published: true, stock: { gt: 0 } }, orderBy: { createdAt: "desc" }, take: 8 }),
+    prisma.category.findMany({ where: { storeId: store.id }, include: { products: { where: { storeId: store.id, published: true, stock: { gt: 0 } }, orderBy: { createdAt: "desc" }, take: 1 } }, take: 3 }),
   ]);
   const arrivals = products.map((product) => ({ id: product.id, name: product.name, price: product.price, slug: product.slug, images: parseJsonArray(product.images) }));
   const featured = categories.map((category) => ({ name: category.name, slug: category.slug, image: category.products[0] ? parseJsonArray(category.products[0].images)[0] ?? null : null }));

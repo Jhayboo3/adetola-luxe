@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   const adminPassword = await bcrypt.hash("admin123", 12);
 
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: "jeremiahoshiokhame@gmail.com" },
     update: { role: "admin" },
     create: {
@@ -14,6 +14,18 @@ async function main() {
       name: "Jeremiah Momoh",
       password: adminPassword,
       role: "admin",
+    },
+  });
+
+  // The platform's first store. Owner is the admin/seller account.
+  const store = await prisma.store.upsert({
+    where: { slug: "tnc-collections" },
+    update: { ownerId: admin.id },
+    create: {
+      name: "TNC Collections",
+      slug: "tnc-collections",
+      logo: null,
+      ownerId: admin.id,
     },
   });
 
@@ -26,9 +38,9 @@ async function main() {
 
   for (const cat of categories) {
     await prisma.category.upsert({
-      where: { slug: cat.slug },
-      update: {},
-      create: cat,
+      where: { storeId_slug: { storeId: store.id, slug: cat.slug } },
+      update: { name: cat.name, description: cat.description },
+      create: { ...cat, storeId: store.id },
     });
   }
 
@@ -49,15 +61,16 @@ async function main() {
 
   for (const product of products) {
     const category = await prisma.category.findUnique({
-      where: { slug: product.categorySlug },
+      where: { storeId_slug: { storeId: store.id, slug: product.categorySlug } },
     });
 
     await prisma.product.upsert({
-      where: { slug: product.slug },
+      where: { storeId_slug: { storeId: store.id, slug: product.slug } },
       update: {},
       create: {
         name: product.name,
         slug: product.slug,
+        storeId: store.id,
         description: `A meticulously crafted piece from the Adetola Luxe Archive.`,
         price: product.price,
         images: "[]",
@@ -72,7 +85,7 @@ async function main() {
   }
 
   await prisma.discountCode.upsert({
-    where: { code: "WELCOME10" },
+    where: { storeId_code: { storeId: store.id, code: "WELCOME10" } },
     update: {},
     create: {
       code: "WELCOME10",
@@ -80,6 +93,7 @@ async function main() {
       value: 10,
       active: true,
       usageLimit: 100,
+      storeId: store.id,
     },
   });
 

@@ -3,12 +3,14 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatPrice, parseJsonArray } from "@/lib/utils";
 import { deleteProduct } from "./actions";
+import { requireStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminProductsPage({ searchParams }: { searchParams: Promise<{ uploaded?: string }> }) {
   const uploaded = Number((await searchParams).uploaded ?? 0);
-  const products = await prisma.product.findMany({ orderBy: { createdAt: "desc" } });
+  const store = await requireStore();
+  const products = await prisma.product.findMany({ where: { storeId: store.id }, orderBy: { createdAt: "desc" } });
   return (
     <div>
       <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">

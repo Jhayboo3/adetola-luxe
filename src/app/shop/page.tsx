@@ -2,6 +2,7 @@ import ProductGrid from "@/components/product/ProductGrid";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { displayColor, parseJsonArray } from "@/lib/utils";
+import { defaultStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +10,11 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
   const category = params.category?.trim() ?? "";
+  const store = await defaultStore();
   const [records, categories] = await Promise.all([
     prisma.product.findMany({
       where: {
+        storeId: store.id,
         published: true,
         stock: { gt: 0 },
         AND: [
@@ -21,7 +24,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
       },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.category.findMany({ orderBy: [{ parentId: "asc" }, { name: "asc" }], select: { name: true, slug: true, parent: { select: { name: true } } } }),
+    prisma.category.findMany({ where: { storeId: store.id }, orderBy: [{ parentId: "asc" }, { name: "asc" }], select: { name: true, slug: true, parent: { select: { name: true } } } }),
   ]);
   const products = records.map((product) => ({
     ...product,

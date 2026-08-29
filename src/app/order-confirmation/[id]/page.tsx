@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
-import { auth } from "@/auth";
+import { defaultStore } from "@/lib/store";
 
 export default async function OrderConfirmationPage({
   params,
@@ -10,10 +10,8 @@ export default async function OrderConfirmationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user?.id) notFound();
-  const isAdmin = (session.user as { role?: string }).role === "admin";
-  const order = await prisma.order.findFirst({ where: { OR: [{ orderCode: id.toUpperCase() }, { id }], ...(isAdmin ? {} : { userId: session.user.id }) }, include: { items: { include: { product: true } } } });
+  const store = await defaultStore();
+  const order = await prisma.order.findFirst({ where: { storeId: store.id, OR: [{ orderCode: id.toUpperCase() }, { id }] }, include: { items: { include: { product: true } } } });
   if (!order) notFound();
 
   return (

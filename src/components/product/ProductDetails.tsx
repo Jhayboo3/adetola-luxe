@@ -10,7 +10,7 @@ import { useCart } from "@/store/cart";
 
 type DetailProduct = { id: string; name: string; slug: string; price: number; description: string; images: string[]; sizes: string[]; colors: string[]; colorSelectable: boolean; stock: number; category: string };
 
-export default function ProductDetails({ product }: { product: DetailProduct }) {
+export default function ProductDetails({ product, storeSlug }: { product: DetailProduct; storeSlug?: string }) {
   const hasColorOptions = product.colorSelectable && product.colors.length > 0;
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] ?? "One Size");
   const [selectedColor, setSelectedColor] = useState(hasColorOptions ? product.colors[0] : "As shown");
@@ -20,8 +20,9 @@ export default function ProductDetails({ product }: { product: DetailProduct }) 
     addItem({ id: `${product.id}-${selectedSize}-${selectedColor}`, productId: product.id, name: product.name, price: product.price, image: product.images[0] ?? "", size: selectedSize, color: selectedColor, quantity: 1 });
     setAdded(true); setTimeout(() => setAdded(false), 2000);
   };
+  const backHref = storeSlug ? `/${storeSlug}` : "/shop";
   return <div className="py-10 md:py-16"><div className="mx-auto max-w-[1200px] px-8">
-    <Link href="/shop" className="mb-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-muted no-underline">&larr; Back to Archive</Link>
+    <Link href={backHref} className="mb-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-muted no-underline">&larr; Back to {storeSlug ? "Store" : "Archive"}</Link>
     <div className="grid grid-cols-1 gap-12 md:grid-cols-[60%_40%]"><ImageGallery images={product.images} productName={product.name} />
       <div className="md:sticky md:top-8 md:self-start"><p className="font-body text-[11px] font-medium uppercase tracking-[2px] text-primary">{product.category}</p><h1 className="mt-3 font-heading text-[28px] font-medium">{product.name}</h1><p className="mt-2 font-heading text-[18px] text-gold">{formatPrice(product.price)}</p><p className="mt-6 font-serif text-[16px] leading-relaxed text-muted">{product.description}</p>
         {product.sizes.length > 0 && <div className="mt-8"><p className="mb-3 font-body text-[11px] font-medium uppercase tracking-[2px]">Size</p><SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} /></div>}
