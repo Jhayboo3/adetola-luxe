@@ -23,7 +23,7 @@ export async function getRelatedProducts(
     store: { slug: string; name: string; logo: string | null };
   };
 
-  const baseWhere: Record<string, unknown> = { published: true, stock: { gt: 0 }, id: { not: opts.productId } };
+  const baseWhere: Record<string, unknown> = { published: true, stock: { gt: 0 }, id: { not: opts.productId }, store: { status: "approved" } };
   const include = { store: { select: { slug: true, name: true, logo: true } } };
 
   const results: RelatedRow[] = [];

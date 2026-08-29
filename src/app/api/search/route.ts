@@ -14,6 +14,7 @@ export async function GET(request: Request) {
         where: {
           published: true,
           stock: { gt: 0 },
+          store: { status: "approved" },
           OR: [
             { name: { contains: q } },
             { description: { contains: q } },
@@ -33,13 +34,13 @@ export async function GET(request: Request) {
         },
       }),
       prisma.store.findMany({
-        where: { name: { contains: q } },
+        where: { status: "approved", name: { contains: q } },
         take: 4,
         orderBy: { name: "asc" },
         select: { id: true, name: true, slug: true, logo: true },
       }),
       prisma.category.findMany({
-        where: { name: { contains: q } },
+        where: { name: { contains: q }, store: { status: "approved" } },
         take: 4,
         orderBy: { name: "asc" },
         select: { slug: true, name: true, store: { select: { slug: true } } },

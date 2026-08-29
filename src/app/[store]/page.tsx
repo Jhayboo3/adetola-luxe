@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ store: st
 export default async function StorefrontPage({ params }: { params: Promise<{ store: string }> }) {
   const { store: slug } = await params;
   const store = await prisma.store.findUnique({ where: { slug } });
-  if (!store) notFound();
+  if (!store || store.status !== "approved") notFound();
 
   const products = await prisma.product.findMany({
     where: { storeId: store.id, published: true, stock: { gt: 0 } },

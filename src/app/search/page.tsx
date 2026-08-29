@@ -16,6 +16,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         ? {
             published: true,
             stock: { gt: 0 },
+            store: { status: "approved" },
             OR: [
               { name: { contains: query } },
               { description: { contains: query } },
@@ -23,17 +24,17 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               { category: { name: { contains: query } } },
             ],
           }
-        : { published: true, stock: { gt: 0 } },
+        : { published: true, stock: { gt: 0 }, store: { status: "approved" } },
       orderBy: { createdAt: "desc" },
       include: { store: { select: { slug: true, name: true } } },
     }),
     prisma.store.findMany({
-      where: query ? { name: { contains: query } } : {},
+      where: query ? { status: "approved", name: { contains: query } } : { status: "approved" },
       orderBy: { name: "asc" },
       include: { _count: { select: { products: true } } },
     }),
     prisma.category.findMany({
-      where: query ? { name: { contains: query } } : {},
+      where: query ? { name: { contains: query }, store: { status: "approved" } } : { store: { status: "approved" } },
       orderBy: { name: "asc" },
       select: { slug: true, name: true, store: { select: { slug: true, name: true } } },
     }),

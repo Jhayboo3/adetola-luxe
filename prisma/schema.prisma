@@ -40,6 +40,10 @@ model Store {
   logo      String?
   whatsapp  String?
   phone     String?
+  description String?
+  status    String   @default("pending")
+  rejectionReason String?
+  approvedAt DateTime?
   ownerId   String
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

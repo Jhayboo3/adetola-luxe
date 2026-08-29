@@ -41,7 +41,7 @@ export default function ProductCard({ product, storeSlug, storeName, storeLogo }
       </Link>
       <div className="mt-3 flex flex-1 flex-col sm:mt-4">
         <Link href={href} className="no-underline">
-          <h3 className="font-heading text-[15px] font-medium leading-tight text-black sm:text-[16px]">
+          <h3 className="line-clamp-2 font-heading text-[15px] font-medium leading-tight text-black sm:text-[16px]">
           {product.name}
           </h3>
         </Link>
@@ -63,10 +63,10 @@ export default function ProductCard({ product, storeSlug, storeName, storeLogo }
           </Link>
         )}
         {product.description && <p className="mt-2 line-clamp-2 font-body text-[11px] leading-relaxed text-muted sm:text-[12px]">{product.description}</p>}
-        <div className="mt-3 space-y-1 font-body text-[10px] leading-relaxed text-muted sm:text-[11px]">
+        <div className="mb-3 mt-3 space-y-1 font-body text-[10px] leading-relaxed text-muted sm:text-[11px]">
           {typeof product.stock === "number" && <p className={product.stock > 0 ? "text-primary" : "text-red-700"}>{product.stock > 0 ? `${product.stock <= 5 ? "Low stock" : "In stock"} · ${product.stock} available` : "Sold out"}</p>}
         </div>
-        <Link href={href} className="cta-secondary mt-4 min-h-11 px-3 py-2 text-[9px] sm:text-[10px]">View Product</Link>
+        <Link href={href} className="cta-secondary mt-auto w-full min-h-11 px-3 py-2 text-[9px] sm:text-[10px]">View Product</Link>
       </div>
     </article>
   );

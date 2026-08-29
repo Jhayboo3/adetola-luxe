@@ -21,13 +21,14 @@ async function main() {
   // "TNC Collections" is a store on the Larkvine marketplace, not the platform itself.
   const store = await prisma.store.upsert({
     where: { slug: "tnc-collections" },
-    update: { ownerId: admin.id },
+    update: { ownerId: admin.id, status: "approved" },
     create: {
       name: "TNC Collections",
       slug: "tnc-collections",
       logo: null,
       whatsapp: "2347011033320",
       phone: "2347011033320",
+      status: "approved",
       ownerId: admin.id,
     },
   });
@@ -47,13 +48,14 @@ async function main() {
   });
   const vendorStore = await prisma.store.upsert({
     where: { slug: "trendy-closet" },
-    update: { ownerId: vendorUser.id },
+    update: { ownerId: vendorUser.id, status: "approved" },
     create: {
       name: "Trendy Closet",
       slug: "trendy-closet",
       logo: null,
       whatsapp: "2348000000001",
       phone: "2348000000001",
+      status: "approved",
       ownerId: vendorUser.id,
     },
   });

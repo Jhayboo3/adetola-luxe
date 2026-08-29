@@ -25,11 +25,12 @@ function toCarousel(item: { id: string; name: string; slug: string; price: numbe
 export default async function Home() {
   const [stores, allProducts] = await Promise.all([
     prisma.store.findMany({
+      where: { status: "approved" },
       orderBy: { createdAt: "asc" },
       include: { _count: { select: { products: true } } },
     }),
     prisma.product.findMany({
-      where: { published: true, stock: { gt: 0 } },
+      where: { published: true, stock: { gt: 0 }, store: { status: "approved" } },
       orderBy: { createdAt: "desc" },
       include: {
         store: { select: { slug: true, name: true, logo: true } },

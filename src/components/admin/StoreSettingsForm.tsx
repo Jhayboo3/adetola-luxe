@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useActionState, useState } from "react";
 import Button from "@/components/ui/Button";
-import { removeStoreLogo, updateStoreLogo } from "@/app/admin/store/actions";
+import { removeStoreLogo, updateStoreLogo } from "@/app/admin/(store)/store/actions";
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];

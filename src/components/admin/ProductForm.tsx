@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import type { ProductFormState } from "@/app/admin/products/actions";
+import type { ProductFormState } from "@/app/admin/(store)/products/actions";
 import { uploadFileKey } from "@/lib/product-upload";
 
 type ProductValue = {

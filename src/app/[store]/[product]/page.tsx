@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 
 export default async function StoreProductPage({ params }: { params: Promise<{ store: string; product: string }> }) {
   const { store: storeSlug, product: productSlug } = await params;
-  const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, name: true } });
-  if (!store) notFound();
+  const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, name: true, status: true } });
+  if (!store || store.status !== "approved") notFound();
   const product = await prisma.product.findFirst({
     where: { storeId: store.id, slug: productSlug, published: true },
     include: { category: true },

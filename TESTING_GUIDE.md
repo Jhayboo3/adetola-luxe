@@ -80,21 +80,31 @@ At checkout (requires a **customer account** — see Part 4 to create one):
 
 ## Part 4 — Selling on Larkvine (vendor onboarding) (important)
 
-### 9. Open a store
+### 9. Apply to open a store (new approval workflow — important to test!)
 Go to **"Sell on Larkvine"** (`/sell`).
-- [ ] Signup form asks for store name and contact/WhatsApp details
-- [ ] After submitting, an account is created with role "vendor" and a new store is created
-- [ ] You are redirected to your new storefront (e.g. `/{your-store-slug}`)
-- [ ] Your store now appears on the homepage "Shop by Store" and the `/stores` directory
+- [ ] Signup form asks for store name, description, contact/WhatsApp details, and account info
+- [ ] After submitting, you see **"Application submitted successfully."** with a message that your application is under review (you are NOT redirected to a storefront)
+- [ ] A vendor account is created with role "vendor"
+- [ ] Your store is in **Pending** status — it does NOT appear:
+  - On the homepage "Shop by Store" or product carousels
+  - In the `/stores` directory
+  - In search (`/search` or the header search)
+  - At its public storefront URL (should be a 404)
 
-### 10. Vendor admin dashboard
-Log in as the vendor, open the menu (hamburger) → "Store Dashboard".
-- [ ] You can access: Dashboard, Store, Products, Categories, Orders, Discounts
+### 10. Pending vendor sees a notice
+Log in as that pending vendor and open the header menu → a store dashboard link (e.g. "Products").
+- [ ] You see **"Your store application is under review."** and **"You will be able to manage your storefront once your application has been approved."**
+- [ ] You CANNOT access Dashboard, Products, Orders, Categories, Discounts, or Store settings yet
+
+### 11. Approved vendor dashboard
+Once a super admin approves your store (see Part 5):
+- [ ] Log in, open the menu → "Store Dashboard" — the full dashboard appears (Dashboard, Store, Products, Categories, Orders, Discounts)
 - [ ] **Dashboard** shows your order revenue, order count, product count, low stock
-- [ ] **Products**:** add** a new product (name, price, stock, images, description, sizes, colours, category), and confirm it appears in your storefront and the marketplace homepage after saving
+- [ ] **Products:** add a new product (name, price, stock, images, description, sizes, colours, category), and confirm it appears in your storefront and the marketplace homepage after saving
 - [ ] **Products:** edit and delete (unpublish) a product
+- [ ] Your storefront URL is now live (e.g. `/{your-store-slug}`) and your store appears on the homepage and `/stores`
 
-### 11. Store logo (new feature — important to test!)
+### 12. Store logo (new feature — important to test!)
 Go to **Store** in the vendor dashboard (or the "Store" link).
 - [ ] You see your store name and current logo (or initial)
 - [ ] **Upload** a logo (JPG/PNG/WebP, under 2 MB) — you should see a **preview** before saving
@@ -109,30 +119,62 @@ Go to **Store** in the vendor dashboard (or the "Store" link).
 
 ---
 
-## Part 5 — Admin (super-admin, optional)
+## Part 5 — Super Admin (platform approval dashboard) (important)
 
-### 12. Admin account
-- [ ] Log in as the platform admin (if provided)
-- [ ] Verify the admin sees the same dashboard + Store settings as a vendor
-- [ ] Confirm admin can see/manage the store's products, orders, categories, and discounts
+### 13. Super Admin account
+Log in as the platform super admin (e.g. `jeremiahoshiokhame@gmail.com`).
+- [ ] Open the header menu → **Platform Admin** section shows **Store Applications** and **All Stores**
+- [ ] Access to `/admin` redirects you to the platform dashboard
+
+### 14. Approve / reject a store application
+Go to **Store Applications** (`/admin/applications`).
+- [ ] Pending applications are listed with: store name, owner, email, WhatsApp/phone, application date, description, product/order counts, and status pill
+- [ ] Click **Approve** → status changes to **Approved** and the store goes live immediately:
+  - Its storefront URL now returns 200
+  - It appears on the homepage "Shop by Store", `/stores`, and search
+- [ ] The now-approved vendor can log in and manage their full dashboard
+- [ ] For a different application click **Reject** → it becomes **Rejected**. Optionally add a rejection reason. The store stays hidden, but the record remains visible with the reason
+- [ ] The rejected vendor, if they log in, sees the "Application not approved" message (with the reason if provided)
+
+### 15. Manage all stores
+Go to **All Stores** (`/admin/stores`).
+- [ ] Lists every store with owner email, product/order/category counts, status, and a "View storefront" link for approved stores
+- [ ] **Suspend** a store → it disappears from the marketplace (404 storefront), can be **Reactivated**
+- [ ] **Delete** a store → a confirmation dialog appears: **"Delete Store?"** with the warning about permanent removal. You must confirm twice. Other stores/orders remain unaffected
+
+### 16. Security checks
+- [ ] A **normal customer** visiting `/admin/stores` or `/admin/applications` is redirected to the admin login
+- [ ] A **pending vendor** cannot reach `/admin/stores` or `/admin/applications` (role-checked server-side)
+- [ ] Only the super admin's approve/reject/delete buttons work; actions are enforced on the server (not just hidden in the UI)
 
 ---
 
-## Part 6 — Everything else to sanity-check
+## Part 6 — Product card alignment (important)
 
-### 13. Links & navigation
+### 17. Check button alignment across sections
+Open the **homepage**, **a storefront**, **/shop**, **/search?q=…**, and a **product page** (You May Also Like).
+- [ ] Every product card in a row has its **"View Product"** button on the same horizontal line (bottom-aligned)
+- [ ] Cards in a row are equal height even when name/description/price/store-name lengths differ
+- [ ] Long product names wrap (up to 2 lines) without moving the button
+- [ ] The layout stays aligned on **mobile**, **tablet**, and **desktop**
+
+---
+
+## Part 7 — Everything else to sanity-check
+
+### 18. Links & navigation
 - [ ] Header menu (hamburger) opens and closes, Escape key closes it, and links work: Home, Search, Shop, Stores, Cart, About, Contact, Sell on Larkvine
 - [ ] Footer links and copyright all render
 - [ ] Cart count badge updates as you add/remove items
 
-### 14. Edge cases & errors
+### 19. Edge cases & errors
 - [ ] Empty states: a store with no products shows "This store is getting ready"
 - [ ] A search with no results shows an empty-state message
 - [ ] Cart is empty → checkout/cart shows an appropriate empty message
 - [ ] Refresh the page mid-browsing — nothing breaks (this is a server-rendered app)
 - [ ] Long product/store names don't break layouts (they should truncate or wrap)
 
-### 15. Performance & polish
+### 20. Performance & polish
 - [ ] Images load (products, logos) — no broken-image icons
 - [ ] Pages feel reasonably fast on both mobile and desktop
 - [ ] No text overlapping or clipped boxes
