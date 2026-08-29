@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { displayColor, formatPrice, parseJsonArray } from "@/lib/utils";
 import { isGarmentSize } from "@/lib/measurements";
+import { ORDER_STATUS_SENT_TO_WHATSAPP } from "@/lib/orders";
 
 type CheckoutItem = { productId: string; quantity: number; size: string; color?: string };
 type Customer = {
@@ -36,7 +37,7 @@ function orderWhatsappMessage(order: {
     itemSections.join("\n\n"),
     "",
     `Total: ${formatPrice(order.total)}`,
-    "Payment Status: Paid",
+    "Payment to be arranged via WhatsApp",
     "",
     "*DELIVERY ADDRESS*",
     `${order.address}${order.deliveryInfo ? `\n${order.deliveryInfo}` : ""}`,
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
         total: subtotal,
       });
       const statements = [
-        env.DB.prepare(`INSERT INTO "Order" ("id","storeId","orderCode","email","name","address","city","state","zip","country","phone","whatsapp","deliveryInfo","userId","checkoutToken","gender","size","measurementUnit","measurementSnapshot","measurementCapturedAt","subtotal","shipping","total","status","paymentMethod","paymentStatus","notes","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(orderId, storeId, orderCode, customer.email, customer.name, customer.address, customer.city, customer.state, customer.zip || "", "NG", customer.phone, customer.whatsapp, customer.deliveryInfo, session?.user?.id ?? null, body.checkoutToken, gender, customer.size, null, "{}", null, subtotal, 0, subtotal, "pending", "whatsapp", "pending", message, now, now),
+        env.DB.prepare(`INSERT INTO "Order" ("id","storeId","orderCode","email","name","address","city","state","zip","country","phone","whatsapp","deliveryInfo","userId","checkoutToken","gender","size","measurementUnit","measurementSnapshot","measurementCapturedAt","subtotal","shipping","total","status","paymentMethod","paymentStatus","notes","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(orderId, storeId, orderCode, customer.email, customer.name, customer.address, customer.city, customer.state, customer.zip || "", "NG", customer.phone, customer.whatsapp, customer.deliveryInfo, session?.user?.id ?? null, body.checkoutToken, gender, customer.size, null, "{}", null, subtotal, 0, subtotal, ORDER_STATUS_SENT_TO_WHATSAPP, "whatsapp", "pending", message, now, now),
         ...items.map((item) => env.DB.prepare(`INSERT INTO "OrderItem" ("id","storeId","orderId","productId","quantity","size","color","price") VALUES (?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(), storeId, orderId, item.productId, item.quantity, item.size, item.color, item.product.price)),
       ];
       try {
