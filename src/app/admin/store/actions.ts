@@ -48,8 +48,8 @@ export async function updateStoreLogo(_state: StoreLogoState, formData: FormData
     if (!file?.size) return { error: "Choose a logo image to upload." };
 
     const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) return { error: "Use a JPG, PNG, or WebP image for the logo." };
-    if (file.size > 2 * 1024 * 1024) return { error: "The logo must be smaller than 2 MB." };
+    if (!allowedTypes.includes(file.type)) return { error: "Unsupported file format — please use a JPG, PNG, or WebP image for the logo." };
+    if (file.size > 2 * 1024 * 1024) return { error: "Image too large — the logo must be smaller than 2 MB." };
 
     const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
     const key = `logos/${store.id}-${crypto.randomUUID()}.${extension}`;

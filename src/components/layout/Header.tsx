@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useCart } from "@/store/cart";
@@ -32,6 +32,12 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const itemCount = useCart((state) => state.getItemCount());
+  const [cartBump, setCartBump] = useState(0);
+  const prevCount = useRef(itemCount);
+  useEffect(() => {
+    if (itemCount > prevCount.current) setCartBump((b) => b + 1);
+    prevCount.current = itemCount;
+  }, [itemCount]);
   const { data: session } = useSession();
   const role = (session?.user as { role?: string } | undefined)?.role;
   const isAdmin = role === "admin";
@@ -62,7 +68,7 @@ export default function Header() {
           <SearchBar />
           <Link href="/cart" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line text-black no-underline transition-colors hover:border-primary hover:text-primary" aria-label={`Cart with ${itemCount} items`}>
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8"><path d="M5 7h14l-1 12H6L5 7Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
-            {itemCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">{itemCount}</span>}
+            {itemCount > 0 && <span key={cartBump} className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white animate-pop">{itemCount}</span>}
           </Link>
         </div>
       </div>

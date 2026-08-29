@@ -2,12 +2,23 @@
 
 import Link from "next/link";
 import { useCart } from "@/store/cart";
+import { useToast } from "@/store/toast";
 import { formatPrice } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Image from "next/image";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotal } = useCart();
+  const toast = useToast((state) => state.show);
+
+  const handleRemove = (item: { id: string; name: string }) => {
+    removeItem(item.id);
+    toast(`Removed ${item.name} from your cart.`, "info", "Removed from cart");
+  };
+  const handleQuantity = (id: string, quantity: number, max?: number) => {
+    if (max && quantity > max) quantity = max;
+    updateQuantity(id, quantity);
+  };
 
   if (items.length === 0) {
     return (
@@ -75,27 +86,25 @@ export default function CartPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() =>
-                          updateQuantity(item.id, item.quantity - 1)
-                        }
-                        className="flex h-8 w-8 items-center justify-center border border-line font-body text-[13px] transition-colors hover:border-black"
+                        onClick={() => handleQuantity(item.id, item.quantity - 1)}
+                        aria-label="Decrease quantity"
+                        className="flex h-8 w-8 items-center justify-center border border-line font-body text-[13px] transition-colors hover:border-black active:scale-95"
                       >
                         -
                       </button>
-                      <span className="font-body text-[13px]">
+                      <span key={`${item.id}-${item.quantity}`} className="inline-block min-w-6 text-center font-body text-[13px] animate-pop">
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() =>
-                          updateQuantity(item.id, item.quantity + 1)
-                        }
-                        className="flex h-8 w-8 items-center justify-center border border-line font-body text-[13px] transition-colors hover:border-black"
+                        onClick={() => handleQuantity(item.id, item.quantity + 1)}
+                        aria-label="Increase quantity"
+                        className="flex h-8 w-8 items-center justify-center border border-line font-body text-[13px] transition-colors hover:border-black active:scale-95"
                       >
                         +
                       </button>
                     </div>
                     <button
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => handleRemove(item)}
                       className="font-body text-[11px] uppercase tracking-[2px] text-muted transition-colors hover:text-primary"
                     >
                       Remove

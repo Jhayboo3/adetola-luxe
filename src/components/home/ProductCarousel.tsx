@@ -37,7 +37,7 @@ export default function ProductCarousel({ title, href = "/shop", viewAllLabel = 
             Nothing here yet — check back soon.
           </div>
         ) : (
-          <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8 [scrollbar-width:thin]">
+          <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:-mx-8 sm:px-8 [scrollbar-width:thin]" data-carousel={title}>
             <div className="flex w-max gap-4 sm:gap-6">
               {products.map((product) => (
                 <div key={product.id} className="w-[220px] shrink-0 md:w-[250px]">

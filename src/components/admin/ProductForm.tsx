@@ -16,6 +16,9 @@ type ProductValue = {
 
 const availableColors = ["Black", "White", "Cream", "Brown", "Gold", "Green", "Blue", "Red", "Pink", "Purple", "Orange", "Yellow", "Grey", "Silver", "Multi-colour"];
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 export default function ProductForm({ action, product, categories }: {
   action: (state: ProductFormState, data: FormData) => Promise<ProductFormState>;
   product?: ProductValue;
@@ -27,6 +30,7 @@ export default function ProductForm({ action, product, categories }: {
     try { return JSON.parse(product.images) as string[]; } catch { return []; }
   });
   const [selectedUploads, setSelectedUploads] = useState<{ file: File; preview: string }[]>([]);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [colorSelectable, setColorSelectable] = useState(product?.colorSelectable ?? true);
   const selectedColors = (() => { try { return product ? (JSON.parse(product.colors) as string[]).map((color) => ({ "#005C29": "Green", "#000000": "Black", "#D4AF37": "Gold", "#FFFFFF": "White" }[color] ?? color)) : []; } catch { return []; } })();
   const list = (value?: string) => { try { return value ? (JSON.parse(value) as string[]).join(", ") : ""; } catch { return ""; } };
@@ -44,6 +48,37 @@ export default function ProductForm({ action, product, categories }: {
     formAction(data);
   };
   const previews = [...selectedUploads.map(({ preview }) => preview), ...existingPreviews];
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    const invalidType = files.find((f) => !ALLOWED_IMAGE_TYPES.includes(f.type));
+    if (invalidType) {
+      setImageError(`"${invalidType.name}" is not a supported format — please use JPG, PNG, or WebP images.`);
+      return;
+    }
+    const tooLarge = files.find((f) => f.size > MAX_IMAGE_BYTES);
+    if (tooLarge) {
+      setImageError(`"${tooLarge.name}" is too large — each image must be smaller than 5 MB.`);
+      return;
+    }
+    if (files.length + selectedUploads.length > 20) {
+      setImageError("You can select no more than 20 images at once.");
+      return;
+    }
+    if (files.length + selectedUploads.length + existingPreviews.length > 10) {
+      setImageError("A product can have up to 10 images in total.");
+      return;
+    }
+    setImageError(null);
+    setSelectedUploads((current) => {
+      const known = new Set(current.map(({ file }) => uploadFileKey(file)));
+      const additions = files.filter((file) => !known.has(uploadFileKey(file))).map((file) => ({ file, preview: URL.createObjectURL(file) }));
+      return [...current, ...additions];
+    });
+  };
 
   return (
     <form action={submitAction} className="mt-8 grid max-w-3xl grid-cols-1 gap-6" encType="multipart/form-data">
@@ -87,7 +122,8 @@ export default function ProductForm({ action, product, categories }: {
         </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="imagePicker" className="font-body text-[12px] font-medium text-muted">Clothing Images (up to 20; JPG, PNG or WebP; max 5 MB each)</label>
-          <input id="imagePicker" type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => { const files = Array.from(event.target.files || []); if (!files.length) return; setSelectedUploads((current) => { const known = new Set(current.map(({ file }) => uploadFileKey(file))); const additions = files.filter((file) => !known.has(uploadFileKey(file))).map((file) => ({ file, preview: URL.createObjectURL(file) })); return [...current, ...additions]; }); event.target.value = ""; }} className="max-w-full cursor-pointer rounded-xl border border-line bg-white p-2 font-body text-[12px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold file:px-4 file:py-2 file:font-body file:text-[11px] file:font-semibold file:uppercase file:tracking-[1px] file:text-black hover:file:bg-primary hover:file:text-white" />
+          <input id="imagePicker" type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={handleImageSelect} className="max-w-full cursor-pointer rounded-xl border border-line bg-white p-2 font-body text-[12px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold file:px-4 file:py-2 file:font-body file:text-[11px] file:font-semibold file:uppercase file:tracking-[1px] file:text-black hover:file:bg-primary hover:file:text-white" />
+          {imageError && <p className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-body text-[12px] text-red-700"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] text-white">!</span>{imageError}</p>}
           <p className="font-body text-[11px] text-muted">{selectedUploads.length} new {selectedUploads.length === 1 ? "file" : "files"} selected. You can choose files again to append more before saving.</p>
           {!product && <label className="rounded-lg bg-[#F7F2E8] px-3 py-3 font-body text-[11px] leading-relaxed text-black"><span className="flex items-start gap-2"><input name="separateProducts" type="checkbox" defaultChecked className="mt-0.5" /><span><strong>Create each image as a separate clothing product.</strong><br />Use this for different designs that need separate catalogue cards. Turn it off only when the images are different views of the same product.</span></span></label>}
           {product && <p className="rounded-lg bg-[#F7F2E8] px-3 py-2 font-body text-[11px] leading-relaxed text-black">New images are added as additional views of this existing product.</p>}

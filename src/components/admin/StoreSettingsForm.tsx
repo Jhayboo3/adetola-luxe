@@ -5,15 +5,31 @@ import { useActionState, useState } from "react";
 import Button from "@/components/ui/Button";
 import { removeStoreLogo, updateStoreLogo } from "@/app/admin/store/actions";
 
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
+
 export default function StoreSettingsForm({ storeName, currentLogo }: { storeName: string; currentLogo: string | null }) {
   const [state, formAction, pending] = useActionState(updateStoreLogo, {});
   const [removeState, removeAction, removePending] = useActionState(removeStoreLogo, {});
   const [preview, setPreview] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const previewSrc = preview ?? currentLogo;
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setValidationError(null);
+      return;
+    }
+    if (!ALLOWED.includes(file.type)) {
+      setValidationError("Unsupported file format — please use a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setValidationError("Image too large — please upload an image smaller than 2 MB.");
+      return;
+    }
+    setValidationError(null);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(URL.createObjectURL(file));
   };
@@ -50,8 +66,14 @@ export default function StoreSettingsForm({ storeName, currentLogo }: { storeNam
             onChange={onFileChange}
             className="mt-2 max-w-full cursor-pointer rounded-xl border border-line bg-white p-2 font-body text-[12px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold file:px-4 file:py-2 file:font-body file:text-[11px] file:font-semibold file:uppercase file:tracking-[1px] file:text-black hover:file:bg-primary hover:file:text-white"
           />
+          {validationError && (
+            <p className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-body text-[12px] text-red-700">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] text-white">!</span>
+              {validationError}
+            </p>
+          )}
           <div className="mt-4 flex flex-wrap gap-3">
-            <Button type="submit" disabled={pending || !preview}>
+            <Button type="submit" disabled={pending || !preview || Boolean(validationError)}>
               {pending ? "Saving..." : preview ? "Save Logo" : "Replace Logo"}
             </Button>
           </div>
