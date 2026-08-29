@@ -15,13 +15,15 @@ interface Product {
 interface ProductGridProps {
   products: Product[];
   storeSlug?: string;
+  storeName?: string;
+  storeLogo?: string | null;
 }
 
-export default function ProductGrid({ products, storeSlug }: ProductGridProps) {
+export default function ProductGrid({ products, storeSlug, storeName, storeLogo }: ProductGridProps) {
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:gap-x-6 xl:grid-cols-4">
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} storeSlug={storeSlug} />
+        <ProductCard key={product.id} product={product} storeSlug={storeSlug} storeName={storeName} storeLogo={storeLogo} />
       ))}
     </div>
   );

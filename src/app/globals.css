@@ -50,3 +50,24 @@ body {
 .cta-primary:active, .cta-secondary:active, .cta-danger:active { transform: scale(0.98); }
 .cta-primary:focus-visible, .cta-secondary:focus-visible, .cta-danger:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
 .cta-primary:disabled, .cta-secondary:disabled, .cta-danger:disabled { cursor: not-allowed; opacity: 0.45; box-shadow: none; }
+
+@theme inline {
+  --animate-fade-up: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-float-slow: float-slow 12s ease-in-out infinite;
+  --animate-float-slower: float-slower 18s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(14px, -18px); }
+}
+
+@keyframes float-slower {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-18px, 14px) scale(1.08); }
+}

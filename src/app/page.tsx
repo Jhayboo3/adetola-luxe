@@ -7,7 +7,7 @@ import { parseJsonArray } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-function toCarousel(item: { id: string; name: string; slug: string; price: number; description: string; stock: number; images: string; store: { slug: string; name: string } }): CarouselProduct {
+function toCarousel(item: { id: string; name: string; slug: string; price: number; description: string; stock: number; images: string; store: { slug: string; name: string; logo?: string | null } }): CarouselProduct {
   return {
     id: item.id,
     name: item.name,
@@ -18,6 +18,7 @@ function toCarousel(item: { id: string; name: string; slug: string; price: numbe
     images: parseJsonArray(item.images),
     storeSlug: item.store.slug,
     storeName: item.store.name,
+    storeLogo: item.store.logo ?? null,
   };
 }
 
@@ -31,7 +32,7 @@ export default async function Home() {
       where: { published: true, stock: { gt: 0 } },
       orderBy: { createdAt: "desc" },
       include: {
-        store: { select: { slug: true, name: true } },
+        store: { select: { slug: true, name: true, logo: true } },
         category: { select: { name: true, slug: true } },
       },
     }),
@@ -52,7 +53,11 @@ export default async function Home() {
 
   return (
     <>
-      <HeroSection storeCount={stores.length} productCount={allProducts.length} />
+      <HeroSection
+        storeCount={stores.length}
+        productCount={allProducts.length}
+        stores={stores.map((s) => ({ name: s.name, slug: s.slug, logo: s.logo }))}
+      />
 
       {/* Marketplace store directory */}
       <section className="py-8 md:py-12">

@@ -20,9 +20,11 @@ interface ProductCardProps {
   // The vendor display name shown on the card. When present a clickable "Store"
   // row is rendered that links to the storefront `/{storeSlug}`.
   storeName?: string;
+  // The vendor's logo, shown inside the store badge when available.
+  storeLogo?: string | null;
 }
 
-export default function ProductCard({ product, storeSlug, storeName }: ProductCardProps) {
+export default function ProductCard({ product, storeSlug, storeName, storeLogo }: ProductCardProps) {
   const href = storeSlug ? `/${storeSlug}/${product.slug}` : `/shop/${product.slug}`;
   return (
     <article className="group flex h-full min-w-0 flex-col">
@@ -48,9 +50,15 @@ export default function ProductCard({ product, storeSlug, storeName }: ProductCa
         </p>
         {storeName && storeSlug && (
           <Link href={`/${storeSlug}`} className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-[#F5F0E9] px-3 py-1 font-body text-[11px] font-medium text-primary no-underline transition-colors hover:bg-primary hover:text-white">
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">
-              {storeName.charAt(0).toUpperCase()}
-            </span>
+            {storeLogo ? (
+              <span className="flex h-4 w-4 items-center justify-center overflow-hidden rounded-full">
+                <Image src={storeLogo} alt="" width={16} height={16} className="h-4 w-4 rounded-full border border-line object-cover" unoptimized />
+              </span>
+            ) : (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">
+                {storeName.charAt(0).toUpperCase()}
+              </span>
+            )}
             {storeName}
           </Link>
         )}

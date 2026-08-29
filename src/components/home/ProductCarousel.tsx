@@ -11,6 +11,7 @@ export type CarouselProduct = {
   images?: string[];
   storeSlug?: string;
   storeName?: string;
+  storeLogo?: string | null;
 };
 
 interface ProductCarouselProps {
@@ -40,7 +41,7 @@ export default function ProductCarousel({ title, href = "/shop", viewAllLabel = 
             <div className="flex w-max gap-4 sm:gap-6">
               {products.map((product) => (
                 <div key={product.id} className="w-[220px] shrink-0 md:w-[250px]">
-                  <ProductCard product={product} storeSlug={product.storeSlug} storeName={product.storeName} />
+                  <ProductCard product={product} storeSlug={product.storeSlug} storeName={product.storeName} storeLogo={product.storeLogo} />
                 </div>
               ))}
             </div>
