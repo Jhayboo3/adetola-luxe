@@ -45,7 +45,7 @@ export default function LoginPage() {
             Sign In
           </h1>
           <p className="mt-2 font-body text-[13px] text-muted">
-            Welcome back to Adetola Luxe
+            Welcome back to Larkvine
           </p>
         </div>
 

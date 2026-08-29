@@ -19,11 +19,11 @@ async function main() {
 
   // The platform's first store. Owner is the admin/seller account.
   const store = await prisma.store.upsert({
-    where: { slug: "tnc-collections" },
+    where: { slug: "larkvine" },
     update: { ownerId: admin.id },
     create: {
-      name: "TNC Collections",
-      slug: "tnc-collections",
+      name: "Larkvine",
+      slug: "larkvine",
       logo: null,
       ownerId: admin.id,
     },
@@ -71,7 +71,7 @@ async function main() {
         name: product.name,
         slug: product.slug,
         storeId: store.id,
-        description: `A meticulously crafted piece from the Adetola Luxe Archive.`,
+        description: `A meticulously crafted piece from the Larkvine Archive.`,
         price: product.price,
         images: "[]",
         sizes: JSON.stringify(["XS", "S", "M", "L", "XL"]),

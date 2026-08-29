@@ -6,4 +6,4 @@
 - Replace SQLite with PostgreSQL before a public launch: change Prisma's datasource provider to `postgresql`, set the hosted `DATABASE_URL`, and run `npx prisma db push` (or create a migration).
 - Use a strong `NEXTAUTH_SECRET` and the public site URL for `NEXTAUTH_URL`.
 - Back up the production database regularly.
-- Admin accounts cannot be created publicly. The approved admin remains `preciousadetola78@gmail.com`.
+- Admin accounts cannot be created publicly. Use the seeded admin account or add approved admins directly in the database.

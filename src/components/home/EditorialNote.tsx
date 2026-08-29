@@ -7,7 +7,7 @@ export default function EditorialNote() {
         <div className="mx-auto mb-8 h-[2px] w-16 bg-gold" />
 
         <p className="font-serif text-[20px] leading-relaxed text-white/85 md:text-[24px]">
-          &ldquo;Each piece in the Adetola Archive is a study in form, fabric,
+          &ldquo;Each piece in the Larkvine Archive is a study in form, fabric,
           and feeling. Cut from vision. Worn with intent.&rdquo;
         </p>
 

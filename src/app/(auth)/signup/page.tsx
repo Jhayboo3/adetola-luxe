@@ -45,7 +45,7 @@ export default function SignupPage() {
             Create Account
           </h1>
           <p className="mt-2 font-body text-[13px] text-muted">
-            Join the Adetola Luxe archive
+            Join the Larkvine archive
           </p>
         </div>
 

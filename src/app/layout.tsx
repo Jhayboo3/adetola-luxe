@@ -16,7 +16,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Adetola Luxe — The Archive",
+  title: "Larkvine — The Archive",
   description: "Cut from vision. Worn with intent.",
 };
 

@@ -61,7 +61,7 @@ export const useCart = create<CartStore>()(
       },
     }),
     {
-      name: "adetola-cart",
+      name: "larkvine-cart",
       // The app is server-rendered. Restore localStorage only after React has
       // hydrated so the server and browser produce the same initial HTML.
       skipHydration: true,

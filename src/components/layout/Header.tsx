@@ -51,7 +51,7 @@ export default function Header() {
         <button type="button" onClick={() => setOpen(true)} aria-label="Open navigation menu" aria-expanded={open} aria-controls="site-navigation" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line bg-white text-black transition-colors hover:border-primary hover:text-primary active:scale-95">
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         </button>
-        <Link href="/" className="absolute left-1/2 flex -translate-x-1/2 items-center no-underline" aria-label="Adetola Luxe home"><Image src="/brand-logo.png" alt="Adetola Luxe" width={120} height={40} className="h-9 w-auto rounded-lg sm:h-10" preload /></Link>
+        <Link href="/" className="absolute left-1/2 flex -translate-x-1/2 items-center no-underline" aria-label="Larkvine home"><Image src="/brand-logo.png" alt="Larkvine" width={120} height={40} className="h-9 w-auto rounded-lg sm:h-10" preload /></Link>
         <Link href="/cart" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line text-black no-underline transition-colors hover:border-primary hover:text-primary" aria-label={`Cart with ${itemCount} items`}>
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8"><path d="M5 7h14l-1 12H6L5 7Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
           {itemCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">{itemCount}</span>}

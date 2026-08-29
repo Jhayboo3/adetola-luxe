@@ -35,24 +35,6 @@ export default function ContactPage() {
                     07011033320
                   </a>
                 </p>
-                <p>
-                  <a
-                    href="mailto:preciousadetola78@gmail.com"
-                    className="text-muted no-underline transition-colors hover:text-primary"
-                  >
-                    preciousadetola78@gmail.com
-                  </a>
-                </p>
-                <p>
-                  <a
-                    href="https://instagram.com/ADETOLASLUXE"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted no-underline transition-colors hover:text-primary"
-                  >
-                    @ADETOLASLUXE
-                  </a>
-                </p>
               </div>
             </div>
           </div>

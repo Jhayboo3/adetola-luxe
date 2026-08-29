@@ -59,7 +59,7 @@ export default function AdminLoginPage() {
             id="email"
             type="email"
             label="Email"
-            placeholder="admin@adetolaluxe.com"
+            placeholder="admin@larkvine.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required

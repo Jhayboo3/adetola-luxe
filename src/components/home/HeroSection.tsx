@@ -8,7 +8,7 @@ export default function HeroSection() {
         <div className="aspect-[4/5] w-full md:aspect-auto md:h-full">
           <Image
             src="/hero-image.jpg"
-            alt="Adetola Luxe"
+            alt="Larkvine"
             fill
             className="object-cover transition-transform duration-700 hover:scale-[1.02]"
             priority
@@ -26,9 +26,7 @@ export default function HeroSection() {
           </p>
 
           <h1 className="font-heading text-[48px] font-light leading-[1.1] tracking-tight text-black md:text-[56px] lg:text-[72px]">
-            Adetola
-            <br />
-            Luxe
+            Larkvine
           </h1>
 
           <p className="mt-6 font-serif text-[18px] leading-relaxed text-muted">
