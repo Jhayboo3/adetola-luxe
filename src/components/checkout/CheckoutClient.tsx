@@ -36,7 +36,10 @@ export default function CheckoutClient({ profile }: { profile: Profile }) {
     const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkoutToken: checkoutToken.current, items: items.map((item) => ({ productId: item.productId, quantity: item.quantity, size: item.size, color: item.color })), customer }) });
     const data = await response.json();
     if (!response.ok) { setError(data.error || "Could not place your order."); setSubmitted(false); return; }
-    clearCart(); window.open(data.whatsappUrl, "_blank", "noopener,noreferrer"); router.push(`/order-confirmation/${data.id}`);
+    const whatsapps = Array.isArray(data.whatsapps) ? data.whatsapps : [];
+    for (const entry of whatsapps) window.open(entry.whatsappUrl, "_blank", "noopener,noreferrer");
+    const ids = whatsapps.map((entry: { orderCode?: string }) => entry.orderCode).join(",");
+    clearCart(); router.push(`/order-confirmation/${ids ? `?ids=${ids}` : ""}`);
   };
 
   if (!items.length && !submitted) return <div className="py-32 text-center"><h1 className="font-heading text-[24px]">Your cart is empty</h1><Link href="/shop" className="mt-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-primary">Browse the Archive</Link></div>;

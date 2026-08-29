@@ -25,9 +25,74 @@ async function main() {
       name: "Larkvine",
       slug: "larkvine",
       logo: null,
+      whatsapp: "2347011033320",
+      phone: "2347011033320",
       ownerId: admin.id,
     },
   });
+
+  // A second demo vendor so the marketplace clearly shows multiple stores.
+  const vendorUser = await prisma.user.upsert({
+    where: { email: "vendor@larkvine.com" },
+    update: { role: "vendor" },
+    create: {
+      email: "vendor@larkvine.com",
+      name: "Trendy Closet",
+      password: adminPassword,
+      role: "vendor",
+      whatsapp: "2348000000001",
+      phone: "2348000000001",
+    },
+  });
+  const vendorStore = await prisma.store.upsert({
+    where: { slug: "trendy-closet" },
+    update: { ownerId: vendorUser.id },
+    create: {
+      name: "Trendy Closet",
+      slug: "trendy-closet",
+      logo: null,
+      whatsapp: "2348000000001",
+      phone: "2348000000001",
+      ownerId: vendorUser.id,
+    },
+  });
+
+  const vendorCategories = [
+    { name: "Shoes", slug: "shoes", description: "Footwear for every occasion." },
+    { name: "Beauty", slug: "beauty", description: "Cosmetics and skincare." },
+  ];
+  for (const cat of vendorCategories) {
+    await prisma.category.upsert({
+      where: { storeId_slug: { storeId: vendorStore.id, slug: cat.slug } },
+      update: { name: cat.name, description: cat.description },
+      create: { ...cat, storeId: vendorStore.id },
+    });
+  }
+  const vendorProducts = [
+    { name: "Urban Sneakers", slug: "urban-sneakers", price: 60000, categorySlug: "shoes" },
+    { name: "Glow Serum", slug: "glow-serum", price: 18000, categorySlug: "beauty" },
+  ];
+  for (const product of vendorProducts) {
+    const category = await prisma.category.findUnique({ where: { storeId_slug: { storeId: vendorStore.id, slug: product.categorySlug } } });
+    await prisma.product.upsert({
+      where: { storeId_slug: { storeId: vendorStore.id, slug: product.slug } },
+      update: {},
+      create: {
+        name: product.name,
+        slug: product.slug,
+        storeId: vendorStore.id,
+        description: `A carefully curated piece from ${vendorStore.name}.`,
+        price: product.price,
+        images: "[]",
+        sizes: JSON.stringify(["L", "M", "XL", "XXL", "XXXL"]),
+        colors: JSON.stringify(["#000000", "#FFFFFF"]),
+        stock: 25,
+        categoryId: category?.id,
+        featured: true,
+        published: true,
+      },
+    });
+  }
 
   const categories = [
     { name: "Ready-to-Wear", slug: "ready-to-wear", description: "Everyday elegance crafted for the modern wardrobe." },

@@ -7,7 +7,8 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
-    if (!req.auth || (req.auth.user as { role?: string })?.role !== "admin") {
+    const role = (req.auth?.user as { role?: string })?.role;
+    if (!req.auth || (role !== "admin" && role !== "vendor")) {
       const url = req.nextUrl.clone();
       url.pathname = "/admin/login";
       return Response.redirect(url);

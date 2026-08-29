@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireStore } from "@/lib/store";
 
-async function admin() { const session = await auth(); if (!session?.user || (session.user as { role?: string }).role !== "admin") throw new Error("Unauthorized"); }
+async function admin() { const session = await auth(); const role = (session?.user as { role?: string })?.role; if (!session?.user || (role !== "admin" && role !== "vendor")) throw new Error("Unauthorized"); }
 export async function createDiscount(formData: FormData) {
   await admin(); const store = await requireStore();
   const code = String(formData.get("code") || "").trim().toUpperCase(); const type = String(formData.get("type")); const value = Number(formData.get("value"));

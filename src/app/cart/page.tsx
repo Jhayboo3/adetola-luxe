@@ -62,7 +62,12 @@ export default function CartPage() {
                         {formatPrice(item.price * item.quantity)}
                       </p>
                     </div>
-                    <p className="font-body text-[11px] text-muted">
+                    {item.storeName && (
+                      <Link href={`/${item.storeSlug}`} className="mt-1 inline-block font-body text-[11px] font-medium text-primary no-underline">
+                        {item.storeName}
+                      </Link>
+                    )}
+                    <p className="mt-1 font-body text-[11px] text-muted">
                       Size: {item.size} · Color: {item.color}
                     </p>
                   </div>

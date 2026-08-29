@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function StoreProductPage({ params }: { params: Promise<{ store: string; product: string }> }) {
   const { store: storeSlug, product: productSlug } = await params;
-  const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true } });
+  const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true, name: true } });
   if (!store) notFound();
   const product = await prisma.product.findFirst({
     where: { storeId: store.id, slug: productSlug, published: true },
@@ -17,6 +17,7 @@ export default async function StoreProductPage({ params }: { params: Promise<{ s
   return (
     <ProductDetails
       storeSlug={storeSlug}
+      storeName={store.name}
       product={{
         id: product.id,
         name: product.name,

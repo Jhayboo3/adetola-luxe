@@ -40,3 +40,15 @@ export async function generateUniqueStoreSlug(name: string): Promise<string> {
   }
   return slug;
 }
+
+// Resolve the WhatsApp number used to notify a store about new orders.
+// Priority: the store's own `whatsapp` field, then its `phone`, then the store
+// owner's WhatsApp/phone, then the platform default. Digits only, no "+".
+export async function storeWhatsapp(storeId: string): Promise<string> {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    include: { owner: { select: { whatsapp: true, phone: true } } },
+  });
+  const raw = store?.whatsapp || store?.phone || store?.owner?.whatsapp || store?.owner?.phone || process.env.WHATSAPP_ORDER_NUMBER || "2347011033320";
+  return raw.replace(/\D/g, "");
+}

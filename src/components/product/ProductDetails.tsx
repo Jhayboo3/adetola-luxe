@@ -10,14 +10,14 @@ import { useCart } from "@/store/cart";
 
 type DetailProduct = { id: string; name: string; slug: string; price: number; description: string; images: string[]; sizes: string[]; colors: string[]; colorSelectable: boolean; stock: number; category: string };
 
-export default function ProductDetails({ product, storeSlug }: { product: DetailProduct; storeSlug?: string }) {
+export default function ProductDetails({ product, storeSlug, storeName }: { product: DetailProduct; storeSlug?: string; storeName?: string }) {
   const hasColorOptions = product.colorSelectable && product.colors.length > 0;
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] ?? "One Size");
   const [selectedColor, setSelectedColor] = useState(hasColorOptions ? product.colors[0] : "As shown");
   const [added, setAdded] = useState(false);
   const addItem = useCart((state) => state.addItem);
   const handleAdd = () => {
-    addItem({ id: `${product.id}-${selectedSize}-${selectedColor}`, productId: product.id, name: product.name, price: product.price, image: product.images[0] ?? "", size: selectedSize, color: selectedColor, quantity: 1 });
+    addItem({ id: `${product.id}-${selectedSize}-${selectedColor}`, productId: product.id, name: product.name, price: product.price, image: product.images[0] ?? "", size: selectedSize, color: selectedColor, quantity: 1, storeSlug, storeName });
     setAdded(true); setTimeout(() => setAdded(false), 2000);
   };
   const backHref = storeSlug ? `/${storeSlug}` : "/shop";

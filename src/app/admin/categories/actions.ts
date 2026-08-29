@@ -8,7 +8,8 @@ import { requireStore } from "@/lib/store";
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user || (session.user as { role?: string }).role !== "admin") throw new Error("Unauthorized");
+  const role = (session?.user as { role?: string })?.role;
+  if (!session?.user || (role !== "admin" && role !== "vendor")) throw new Error("Unauthorized");
 }
 
 export async function createCategory(formData: FormData) {

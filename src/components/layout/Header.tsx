@@ -9,12 +9,12 @@ import { useCart } from "@/store/cart";
 
 const publicLinks = [
   { href: "/", label: "Home" },
-  { href: "/shop", label: "Shop All Clothing" },
-  { href: "/shop#categories", label: "Categories" },
-  { href: "/shop#catalog-search", label: "Search" },
+  { href: "/shop", label: "Shop" },
+  { href: "/stores", label: "Stores" },
   { href: "/cart", label: "Cart" },
   { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact & Support" },
+  { href: "/contact", label: "Contact" },
+  { href: "/sell", label: "Sell on Larkvine" },
 ];
 
 const adminLinks = [
@@ -30,7 +30,10 @@ export default function Header() {
   const pathname = usePathname();
   const itemCount = useCart((state) => state.getItemCount());
   const { data: session } = useSession();
-  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const isAdmin = role === "admin";
+  const isVendor = role === "vendor";
+  const canManageStore = isAdmin || isVendor;
   useEffect(() => {
     if (!open) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
@@ -64,7 +67,7 @@ export default function Header() {
         <div className="flex items-center justify-between border-b border-line px-5 py-5"><span className="font-heading text-[19px]">Menu</span><button type="button" autoFocus onClick={() => setOpen(false)} aria-label="Close menu" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line text-xl transition-colors hover:border-primary hover:text-primary">×</button></div>
         <nav className="flex flex-col gap-1 p-4">{publicLinks.map((link) => menuLink(link.href, link.label))}</nav>
         {session && <div className="border-t border-line p-4"><p className="mb-2 px-4 font-body text-[10px] font-bold uppercase tracking-[2px] text-muted">Account</p>{menuLink("/account/profile", "Profile")}</div>}
-        {isAdmin && <div className="border-t border-line p-4"><p className="mb-2 px-4 font-body text-[10px] font-bold uppercase tracking-[2px] text-muted">Administration</p><nav className="flex flex-col gap-1">{adminLinks.map((link) => menuLink(link.href, link.label))}</nav></div>}
+        {canManageStore && <div className="border-t border-line p-4"><p className="mb-2 px-4 font-body text-[10px] font-bold uppercase tracking-[2px] text-muted">{isVendor ? "Store Dashboard" : "Administration"}</p><nav className="flex flex-col gap-1">{adminLinks.map((link) => menuLink(link.href, link.label))}</nav></div>}
         <div className="mt-auto border-t border-line p-4">{session ? <button type="button" onClick={() => { setOpen(false); signOut({ callbackUrl: "/" }); }} className="cta-secondary w-full">Sign Out</button> : <div className="grid grid-cols-2 gap-3"><Link href="/login" onClick={() => setOpen(false)} className="cta-primary">Login</Link><Link href="/signup" onClick={() => setOpen(false)} className="cta-secondary">Register</Link></div>}</div>
       </aside>
     </div>}

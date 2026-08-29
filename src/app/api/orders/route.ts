@@ -10,8 +10,38 @@ type Customer = {
   gender?: string; address: string; city: string; state: string; zip?: string;
   deliveryInfo?: string; size: string;
 };
-const whatsappNumber = (process.env.WHATSAPP_ORDER_NUMBER || "2347011033320").replace(/\D/g, "");
 const sizeNames: Record<string, string> = { XS: "Extra Small", S: "Small", M: "Medium", L: "Large", XL: "Extra Large", XXL: "Double Extra Large", XXXL: "Triple Extra Large" };
+
+function orderWhatsappMessage(order: {
+  orderCode: string; storeName: string; customerName: string; address: string; deliveryInfo: string;
+  items: { name: string; size: string; color: string; quantity: number; total: number }[]; total: number;
+}) {
+  const itemSections = order.items.map((item) =>
+    [
+      `*Product:* ${item.name}`,
+      `Size: ${sizeNames[item.size.toUpperCase()] ?? item.size}`,
+      `Colour: ${item.color}`,
+      `Quantity: ${item.quantity}`,
+      `Price: ${formatPrice(item.total)}`,
+    ].join("\n")
+  );
+  return [
+    "*NEW ORDER*",
+    "",
+    `Store: ${order.storeName}`,
+    `Order ID: #${order.orderCode}`,
+    `Customer Name: ${order.customerName}`,
+    "",
+    "*ORDER DETAILS*",
+    itemSections.join("\n\n"),
+    "",
+    `Total: ${formatPrice(order.total)}`,
+    "Payment Status: Paid",
+    "",
+    "*DELIVERY ADDRESS*",
+    `${order.address}${order.deliveryInfo ? `\n${order.deliveryInfo}` : ""}`,
+  ].join("\n");
+}
 
 async function createOrderCode(storeId: string) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -22,10 +52,7 @@ async function createOrderCode(storeId: string) {
   throw new Error("Could not generate an order number. Please try again.");
 }
 
-function whatsappMessage(order: { orderCode: string; name: string; phone: string; whatsapp: string; email: string; gender: string; size: string; address: string; city: string; state: string; zip: string; deliveryInfo: string; total: number; items: { name: string; size: string; color: string; quantity: number; total: number }[] }) {
-  const itemSections = order.items.map((item) => [item.name, `Size: ${sizeNames[item.size.toUpperCase()] ?? item.size}`, `Colour: ${item.color}`, `Quantity: ${item.quantity}`, `Price: ${formatPrice(item.total)}`].join("\n"));
-  return ["*NEW CLOTHING ORDER*", "", `*Order ID:* #${order.orderCode}`, `*Customer:* ${order.name}`, `*Phone:* ${order.phone}`, `*WhatsApp:* ${order.whatsapp}`, `*Email:* ${order.email}`, `*Garment Size:* ${sizeNames[order.size.toUpperCase()] ?? order.size}`, order.gender ? `*Gender:* ${order.gender}` : "", "", "*ORDER DETAILS*", itemSections.join("\n\n"), "", `*Total:* ${formatPrice(order.total)}`, "", "*DELIVERY ADDRESS*", `${order.address}, ${order.city}, ${order.state}${order.zip ? `, ${order.zip}` : ""}`, order.deliveryInfo || ""].filter((line, index, list) => line !== "" || list[index - 1] !== "").join("\n");
-}
+const fallbackWhatsapp = (process.env.WHATSAPP_ORDER_NUMBER || "2347011033320").replace(/\D/g, "");
 
 export async function POST(request: Request) {
   try {
@@ -41,18 +68,13 @@ export async function POST(request: Request) {
     const requested = body.items.filter((item) => Number.isInteger(item.quantity) && item.quantity > 0 && typeof item.productId === "string");
     if (requested.length !== body.items.length) return Response.json({ error: "Invalid cart quantity." }, { status: 400 });
     const ids = [...new Set(requested.map((item) => item.productId))];
-    const products = await prisma.product.findMany({ where: { id: { in: ids }, published: true, stock: { gt: 0 } } });
+    const products = await prisma.product.findMany({ where: { id: { in: ids }, published: true, stock: { gt: 0 } }, include: { store: { select: { id: true, name: true, slug: true, whatsapp: true, phone: true, owner: { select: { whatsapp: true, phone: true } } } } } });
     if (products.length !== ids.length) return Response.json({ error: "One or more cart items are sold out or unavailable." }, { status: 409 });
-    const storeId = products[0]?.storeId;
-    if (!storeId || products.some((product) => product.storeId !== storeId)) return Response.json({ error: "Cart items belong to different stores." }, { status: 409 });
-
-    const previous = await prisma.order.findFirst({ where: { checkoutToken: body.checkoutToken, storeId }, select: { orderCode: true, notes: true } });
-    if (previous) return Response.json({ id: previous.orderCode, whatsappUrl: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(previous.notes || "")}` });
-
     const byId = new Map(products.map((product) => [product.id, product]));
-    const totals = new Map<string, number>();
-    for (const item of requested) totals.set(item.productId, (totals.get(item.productId) ?? 0) + item.quantity);
-    for (const [id, quantity] of totals) if (byId.get(id)!.stock < quantity) return Response.json({ error: `${byId.get(id)!.name} does not have enough stock.` }, { status: 409 });
+
+    for (const [id, quantity] of requested.reduce((m, i) => m.set(i.productId, (m.get(i.productId) ?? 0) + i.quantity), new Map<string, number>())) {
+      if (byId.get(id)!.stock < quantity) return Response.json({ error: `${byId.get(id)!.name} does not have enough stock.` }, { status: 409 });
+    }
 
     const normalized = requested.map((item) => {
       const product = byId.get(item.productId)!;
@@ -66,21 +88,59 @@ export async function POST(request: Request) {
       }
       return { ...item, size, color, product };
     });
-    const subtotal = normalized.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-    const orderCode = await createOrderCode(storeId);
-    const orderId = crypto.randomUUID();
+
+    // Group items by store so each vendor gets its own order + WhatsApp message.
+    const groups = new Map<string, typeof normalized>();
+    for (const item of normalized) {
+      const key = item.product.store.id;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(item);
+    }
+
+    const { env } = await getCloudflareContext({ async: true });
     const now = new Date().toISOString();
     const gender = customer.gender === "Male" || customer.gender === "Female" ? customer.gender : null;
-    const message = whatsappMessage({ orderCode, name: customer.name, phone: customer.phone, whatsapp: customer.whatsapp, email: customer.email, gender: gender ?? "", size: customer.size, address: customer.address, city: customer.city, state: customer.state, zip: customer.zip ?? "", deliveryInfo: customer.deliveryInfo ?? "", total: subtotal, items: normalized.map((item) => ({ name: item.product.name, size: item.size, color: item.color, quantity: item.quantity, total: item.product.price * item.quantity })) });
-    const { env } = await getCloudflareContext({ async: true });
-    const statements = [env.DB.prepare(`INSERT INTO "Order" ("id","storeId","orderCode","email","name","address","city","state","zip","country","phone","whatsapp","deliveryInfo","userId","checkoutToken","gender","size","measurementUnit","measurementSnapshot","measurementCapturedAt","subtotal","shipping","total","status","paymentMethod","paymentStatus","notes","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(orderId, storeId, orderCode, customer.email, customer.name, customer.address, customer.city, customer.state, customer.zip || "", "NG", customer.phone, customer.whatsapp, customer.deliveryInfo, session?.user?.id ?? null, body.checkoutToken, gender, customer.size, null, "{}", null, subtotal, 0, subtotal, "pending", "whatsapp", "pending", message, now, now), ...normalized.map((item) => env.DB.prepare(`INSERT INTO "OrderItem" ("id","storeId","orderId","productId","quantity","size","color","price") VALUES (?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(), storeId, orderId, item.productId, item.quantity, item.size, item.color, item.product.price))];
-    try { await env.DB.batch(statements); } catch (error) {
-      const existing = await prisma.order.findFirst({ where: { checkoutToken: body.checkoutToken, storeId }, select: { orderCode: true, notes: true } });
-      if (existing) return Response.json({ id: existing.orderCode, whatsappUrl: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(existing.notes || "")}` });
-      if (error instanceof Error && /stock/i.test(error.message)) return Response.json({ error: "An item just sold out. Please review your cart." }, { status: 409 });
-      throw error;
+    // Idempotency: any matching order across the involved stores short-circuits.
+    const existing = await prisma.order.findMany({ where: { checkoutToken: body.checkoutToken }, include: { store: { select: { id: true, name: true, whatsapp: true, phone: true, owner: { select: { whatsapp: true, phone: true } } } } } });
+    if (existing.length) {
+      const results = [];
+      for (const order of existing) {
+        const number = (order.store.whatsapp || order.store.phone || order.store.owner?.whatsapp || order.store.owner?.phone || fallbackWhatsapp).replace(/\D/g, "");
+        results.push({ store: order.store.name, orderCode: order.orderCode, whatsappUrl: `https://wa.me/${number}?text=${encodeURIComponent(order.notes || "")}` });
+      }
+      return Response.json({ whatsapps: results });
     }
-    return Response.json({ id: orderCode, whatsappUrl: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}` });
+
+    const results = [];
+    for (const [storeId, items] of groups) {
+      const store = byId.get(items[0].product.id)!.store;
+      const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+      const orderCode = await createOrderCode(storeId);
+      const orderId = crypto.randomUUID();
+      const message = orderWhatsappMessage({
+        orderCode,
+        storeName: store.name,
+        customerName: customer.name,
+        address: `${customer.address}, ${customer.city}, ${customer.state}${customer.zip ? `, ${customer.zip}` : ""}`,
+        deliveryInfo: customer.deliveryInfo ?? "",
+        items: items.map((item) => ({ name: item.product.name, size: item.size, color: item.color, quantity: item.quantity, total: item.product.price * item.quantity })),
+        total: subtotal,
+      });
+      const statements = [
+        env.DB.prepare(`INSERT INTO "Order" ("id","storeId","orderCode","email","name","address","city","state","zip","country","phone","whatsapp","deliveryInfo","userId","checkoutToken","gender","size","measurementUnit","measurementSnapshot","measurementCapturedAt","subtotal","shipping","total","status","paymentMethod","paymentStatus","notes","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(orderId, storeId, orderCode, customer.email, customer.name, customer.address, customer.city, customer.state, customer.zip || "", "NG", customer.phone, customer.whatsapp, customer.deliveryInfo, session?.user?.id ?? null, body.checkoutToken, gender, customer.size, null, "{}", null, subtotal, 0, subtotal, "pending", "whatsapp", "pending", message, now, now),
+        ...items.map((item) => env.DB.prepare(`INSERT INTO "OrderItem" ("id","storeId","orderId","productId","quantity","size","color","price") VALUES (?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(), storeId, orderId, item.productId, item.quantity, item.size, item.color, item.product.price)),
+      ];
+      try {
+        await env.DB.batch(statements);
+      } catch (error) {
+        if (error instanceof Error && /stock/i.test(error.message)) return Response.json({ error: "An item just sold out. Please review your cart." }, { status: 409 });
+        throw error;
+      }
+      const number = (store.whatsapp || store.phone || store.owner?.whatsapp || store.owner?.phone || fallbackWhatsapp).replace(/\D/g, "");
+      results.push({ store: store.name, orderCode, whatsappUrl: `https://wa.me/${number}?text=${encodeURIComponent(message)}` });
+    }
+
+    return Response.json({ whatsapps: results });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not place order." }, { status: 500 });
   }
