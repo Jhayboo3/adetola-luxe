@@ -36,9 +36,7 @@ export default async function ShopPage({ searchParams }: { searchParams: Promise
   return (
     <div className="py-16 md:py-20">
       <div className="mx-auto max-w-[1200px] px-8">
-        <div className="mb-4 h-[2px] w-12 bg-gold" />
-
-        <h1 className="font-heading text-[28px] font-medium text-black">
+        <h1 className="mt-4 font-heading text-[28px] font-medium text-black">
           {selectedCategory?.name ?? "The Archive"}
         </h1>
 
