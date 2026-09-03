@@ -63,7 +63,7 @@ export default function Header() {
         <button type="button" onClick={() => setOpen(true)} aria-label="Open navigation menu" aria-expanded={open} aria-controls="site-navigation" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line bg-white text-black transition-colors hover:border-primary hover:text-primary active:scale-95">
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         </button>
-        <Link href="/" className="absolute left-1/2 flex -translate-x-1/2 items-center no-underline" aria-label="Larkvine home"><Image src="/brand-logo.png" alt="Larkvine" width={120} height={40} className="h-9 w-auto rounded-lg sm:h-10" preload /></Link>
+        <Link href="/" className="absolute left-1/2 flex -translate-x-1/2 items-center no-underline" aria-label="Larkvine home"><Image src="/logomark.png" alt="Larkvine" width={40} height={40} className="h-10 w-10 rounded-full object-cover sm:h-11 sm:w-11" preload /></Link>
         <div className="flex items-center gap-2">
           <SearchBar />
           <Link href="/cart" className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line text-black no-underline transition-colors hover:border-primary hover:text-primary" aria-label={`Cart with ${itemCount} items`}>

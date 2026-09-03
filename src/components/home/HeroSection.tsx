@@ -43,7 +43,6 @@ export default function HeroSection({
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/10 to-transparent" />
 
         <div className="relative">
-          <div className="mx-auto mb-6 h-[2px] w-16 bg-gold animate-fade-up" />
           <h1 className="animate-fade-up font-heading text-[34px] font-light leading-[1.1] tracking-tight md:text-[52px]" style={{ animationDelay: "80ms" }}>
             One marketplace.<br />
             <span className="bg-gradient-to-r from-gold-light via-gold to-gold-light bg-clip-text font-normal text-transparent">Every store you love.</span>
