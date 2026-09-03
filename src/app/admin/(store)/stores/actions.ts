@@ -16,9 +16,22 @@ export async function updateStoreStatus(formData: FormData) {
     data:
       status === STORE_STATUSES.approved
         ? { status, approvedAt: new Date(), rejectionReason: null }
-        : { status, approvedAt: status === STORE_STATUSES.approved ? new Date() : undefined },
+        : { status },
   });
 
+  revalidatePath("/admin/stores");
+  revalidatePath("/admin/applications");
+  revalidatePath("/", "layout");
+}
+
+// Toggle a store's verified badge. Only the platform super admin may grant or
+// revoke verification.
+export async function setStoreVerified(formData: FormData) {
+  await requirePlatformAdmin();
+  const id = String(formData.get("id"));
+  const verified = formData.get("verified") === "1";
+  if (!id) throw new Error("Missing store id");
+  await prisma.store.update({ where: { id }, data: { isVerified: verified } });
   revalidatePath("/admin/stores");
   revalidatePath("/admin/applications");
   revalidatePath("/", "layout");

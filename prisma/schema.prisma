@@ -38,9 +38,30 @@ model Store {
   name      String
   slug      String   @unique
   logo      String?
+  coverImage String?
   whatsapp  String?
   phone     String?
+  email     String?
   description String?
+  category  String?
+  isVerified Boolean  @default(false)
+  country   String?
+  state     String?
+  city      String?
+  area      String?
+  physicalAddress String?
+  mapLocation String?
+  pickupAvailable Boolean @default(false)
+  deliveryAvailable Boolean @default(false)
+  instagramUrl String?
+  preferredContactMethod String?
+  aboutStore String?
+  productsDescription String?
+  openingHours String?
+  deliveryAreas String?
+  pickupInformation String?
+  paymentMethods String?
+  returnPolicy String?
   status    String   @default("pending")
   rejectionReason String?
   approvedAt DateTime?

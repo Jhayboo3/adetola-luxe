@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformAdmin } from "@/lib/store";
+import StoreDetailDisplay from "@/components/admin/StoreDetailDisplay";
 import { ApplicationActions } from "./actions-client";
+import { StoreVerifyButton } from "../stores/verify-client";
 
 export const dynamic = "force-dynamic";
 
@@ -81,13 +83,17 @@ export default async function StoreApplicationsPage() {
               )}
             </div>
 
+            <div className="mt-4 border-t border-line pt-4">
+              <StoreDetailDisplay store={app} />
+            </div>
+
             <dl className="mt-4 grid grid-cols-1 gap-3 text-[13px] sm:grid-cols-2">
               <div>
                 <dt className="font-body text-[10px] uppercase tracking-[1.5px] text-muted">Owner</dt>
                 <dd className="font-body">{app.owner.name}</dd>
               </div>
               <div>
-                <dt className="font-body text-[10px] uppercase tracking-[1.5px] text-muted">Email</dt>
+                <dt className="font-body text-[10px] uppercase tracking-[1.5px] text-muted">Owner Email</dt>
                 <dd className="break-all font-body">{app.owner.email}</dd>
               </div>
               <div>
@@ -102,9 +108,6 @@ export default async function StoreApplicationsPage() {
               </div>
             </dl>
 
-            {app.description && (
-              <p className="mt-4 rounded-lg bg-[#F7F3ED] p-4 font-body text-[13px] leading-relaxed text-ink/80">{app.description}</p>
-            )}
             {app.status === "rejected" && app.rejectionReason && (
               <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 font-body text-[12px] text-red-700">
                 <span className="font-semibold">Rejection reason:</span> {app.rejectionReason}
@@ -113,6 +116,15 @@ export default async function StoreApplicationsPage() {
 
             <div className="mt-5 border-t border-line pt-4">
               <ApplicationActions id={app.id} name={app.name} showApprove={app.status !== "approved"} />
+              <div className="mt-3 flex items-center gap-3">
+                <StoreVerifyButton id={app.id} name={app.name} verified={app.isVerified} />
+                {app.isVerified && (
+                  <span className="inline-flex items-center gap-1.5 font-body text-[11px] font-medium text-[#1DA1F2]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    Verified
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         ))}

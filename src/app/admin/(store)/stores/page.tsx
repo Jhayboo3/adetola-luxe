@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformAdmin } from "@/lib/store";
 import { StoreManageActions } from "./manage-client";
+import { StoreVerifyButton } from "./verify-client";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,11 @@ export default async function AllStoresPage() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-heading text-[16px]">{store.name}</h2>
+                {store.isVerified && (
+                  <span title="Verified store" className="inline-flex items-center justify-center rounded-full bg-[#1DA1F2] p-0.5 text-white">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                  </span>
+                )}
                 <span className={`rounded-full px-2 py-0.5 font-body text-[9px] font-bold uppercase tracking-[1px] ${statusColor[store.status] || "bg-slate-100"}`}>
                   {statusLabel[store.status] || store.status}
                 </span>
@@ -61,7 +67,10 @@ export default async function AllStoresPage() {
                 </Link>
               )}
             </div>
-            <StoreManageActions id={store.id} name={store.name} status={store.status} />
+            <div className="flex shrink-0 flex-col items-start gap-2">
+              <StoreManageActions id={store.id} name={store.name} status={store.status} />
+              <StoreVerifyButton id={store.id} name={store.name} verified={store.isVerified} />
+            </div>
           </div>
         ))}
       </div>
