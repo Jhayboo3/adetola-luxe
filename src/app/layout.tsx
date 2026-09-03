@@ -19,8 +19,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Larkvine — The Archive",
-  description: "Cut from vision. Worn with intent.",
+  title: "Larkvine — one stop, many finds",
+  description: "Found with vision. Bought with intent.",
 };
 
 export default function RootLayout({

@@ -5,7 +5,7 @@ export default function Footer() {
         <div>
           <h3 className="font-heading text-lg text-black">Larkvine</h3>
           <p className="mt-2 font-body text-[13px] leading-relaxed text-muted">
-            Cut from vision. Worn with intent.
+            Found with vision. Bought with intent.
           </p>
         </div>
 

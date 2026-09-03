@@ -24,9 +24,11 @@ export default function CartPage() {
     return (
       <div className="flex flex-1 items-center justify-center py-32">
         <div className="text-center">
-          <div className="mx-auto mb-6 h-[2px] w-16 bg-gold" />
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gold/10 text-gold">
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-8 w-8 fill-none stroke-current" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14l-1 12H6L5 7Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
+          </div>
           <h1 className="font-heading text-[24px] font-medium text-black">
-            Your archive is empty
+            Your cart is empty
           </h1>
           <p className="mt-3 font-body text-[13px] text-muted">
             Begin collecting pieces that speak to you.
@@ -35,7 +37,7 @@ export default function CartPage() {
             href="/shop"
             className="cta-primary mt-8"
           >
-            Browse the Archive
+            Browse archive
           </Link>
         </div>
       </div>

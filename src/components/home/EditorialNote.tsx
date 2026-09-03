@@ -8,7 +8,7 @@ export default function EditorialNote() {
 
         <p className="font-serif text-[20px] leading-relaxed text-white/85 md:text-[24px]">
           &ldquo;Each piece in the Larkvine Archive is a study in form, fabric,
-          and feeling. Cut from vision. Worn with intent.&rdquo;
+          and feeling. Found with vision. Bought with intent.&rdquo;
         </p>
 
         <Link
