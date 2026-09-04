@@ -26,21 +26,36 @@ function toCarousel(item: { id: string; name: string; slug: string; price: numbe
 async function getHomeData() {
   "use cache: remote";
   cacheLife({ revalidate: 300, expire: 3600 });
-  const [stores, allProducts] = await Promise.all([
+  const baseWhere = { published: true, stock: { gt: 0 }, store: { status: "approved" } };
+  const include = {
+    store: { select: { slug: true, name: true, logo: true } },
+    category: { select: { name: true, slug: true } },
+  };
+  const [stores, recent, featured] = await Promise.all([
     prisma.store.findMany({
       where: { status: "approved" },
       orderBy: { createdAt: "asc" },
       include: { _count: { select: { products: true } } },
     }),
     prisma.product.findMany({
-      where: { published: true, stock: { gt: 0 }, store: { status: "approved" } },
+      where: baseWhere,
       orderBy: { createdAt: "desc" },
-      include: {
-        store: { select: { slug: true, name: true, logo: true } },
-        category: { select: { name: true, slug: true } },
-      },
+      take: 60,
+      include,
+    }),
+    prisma.product.findMany({
+      where: { ...baseWhere, featured: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include,
     }),
   ]);
+
+  const seen = new Set<string>();
+  const allProducts = [...featured, ...recent]
+    .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
   return { stores, allProducts };
 }
 
