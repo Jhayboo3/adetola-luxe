@@ -1,4 +1,5 @@
 import Image from "next/image";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
 type StoreInfo = {
   name: string;
@@ -67,9 +68,7 @@ export default function StoreDetailDisplay({ store }: { store: StoreInfo }) {
             <div className="flex items-center gap-2">
               <span className="font-heading text-[15px]">{store.name}</span>
               {store.isVerified && (
-                <span title="Verified" className="inline-flex items-center justify-center rounded-full bg-[#1DA1F2] p-0.5 text-white">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                </span>
+                <VerifiedBadge size={18} />
               )}
             </div>
             <p className="font-body text-[11px] text-muted">@{store.slug}</p>

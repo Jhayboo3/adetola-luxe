@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformAdmin } from "@/lib/store";
 import StoreDetailDisplay from "@/components/admin/StoreDetailDisplay";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import { ApplicationActions } from "./actions-client";
 import { StoreVerifyButton } from "../stores/verify-client";
 
@@ -119,8 +120,8 @@ export default async function StoreApplicationsPage() {
               <div className="mt-3 flex items-center gap-3">
                 <StoreVerifyButton id={app.id} name={app.name} verified={app.isVerified} />
                 {app.isVerified && (
-                  <span className="inline-flex items-center gap-1.5 font-body text-[11px] font-medium text-[#1DA1F2]">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                  <span className="inline-flex items-center gap-1.5 font-body text-[11px] font-medium text-[#1D9BF0]">
+                    <VerifiedBadge size={16} />
                     Verified
                   </span>
                 )}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -39,9 +40,7 @@ export default async function StoresPage() {
                   <div className="flex items-center gap-1.5">
                     <h2 className="truncate font-heading text-[17px] font-medium text-black">{store.name}</h2>
                     {store.isVerified && (
-                      <span title="Verified store" className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1DA1F2] p-0.5 text-white">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                      </span>
+                      <VerifiedBadge size={15} />
                     )}
                   </div>
                   <p className="font-body text-[11px] uppercase tracking-[2px] text-muted">Store</p>

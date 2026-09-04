@@ -1,4 +1,5 @@
 import Image from "next/image";
+import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
 interface StoreHeaderProps {
   name: string;
@@ -61,8 +62,8 @@ export default function StoreHeader(props: StoreHeaderProps) {
               </div>
             )}
             {props.isVerified && (
-              <span title="Verified store" className="absolute -bottom-0.5 right-0 flex items-center justify-center rounded-full bg-[#1DA1F2] p-1 text-white shadow">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+              <span className="absolute -bottom-0.5 right-0 flex items-center justify-center rounded-full bg-white p-0.5 shadow">
+                <VerifiedBadge size={18} />
               </span>
             )}
           </div>
