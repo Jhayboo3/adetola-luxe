@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Suspense } from "react";
 import { connection } from "next/server";
 import { cacheLife } from "next/cache";
 import HeroSection from "@/components/home/HeroSection";
@@ -123,9 +122,5 @@ async function HomeContent() {
 }
 
 export default function Home() {
-  return (
-    <Suspense fallback={null}>
-      <HomeContent />
-    </Suspense>
-  );
+  return <HomeContent />;
 }
