@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { parseMeasurements } from "@/lib/measurements";
 import ProfileForm from "@/components/account/ProfileForm";
 
-export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const session = await auth();

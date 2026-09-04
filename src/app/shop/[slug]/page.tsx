@@ -6,7 +6,6 @@ import RelatedProducts from "@/components/product/RelatedProducts";
 import { defaultStore } from "@/lib/store";
 import { getRelatedProducts } from "@/lib/related";
 
-export const dynamic = "force-dynamic";
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

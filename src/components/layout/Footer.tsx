@@ -1,3 +1,5 @@
+"use client";
+
 export default function Footer() {
   return (
     <footer className="border-t border-line bg-white">
@@ -27,7 +29,7 @@ export default function Footer() {
       <div className="border-t border-line">
         <div className="mx-auto max-w-[1200px] px-8 py-6 text-center">
           <p className="font-body text-[11px] text-muted">
-            &copy; {new Date().getFullYear()} Larkvine. All rights reserved.
+            &copy; {2026} Larkvine. All rights reserved.
           </p>
         </div>
       </div>

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { STORE_STATUSES, isSuperAdminRole } from "@/lib/store";
 import { PendingStoreNotice } from "../pending-notice";
 
-export const dynamic = "force-dynamic";
 
 export default async function AdminStoreLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

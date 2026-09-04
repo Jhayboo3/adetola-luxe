@@ -2,7 +2,6 @@ import { connection } from "next/server";
 import { requireStore } from "@/lib/store";
 import StoreProfileForm from "@/components/admin/StoreProfileForm";
 
-export const dynamic = "force-dynamic";
 
 export default async function StoreSettingsPage() {
   await connection();

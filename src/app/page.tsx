@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { cacheLife } from "next/cache";
 import HeroSection from "@/components/home/HeroSection";
 import ProductCarousel, { type CarouselProduct } from "@/components/home/ProductCarousel";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray } from "@/lib/utils";
-
-export const dynamic = "force-dynamic";
 
 function toCarousel(item: { id: string; name: string; slug: string; price: number; description: string; stock: number; images: string; store: { slug: string; name: string; logo?: string | null } }): CarouselProduct {
   return {
@@ -22,7 +23,9 @@ function toCarousel(item: { id: string; name: string; slug: string; price: numbe
   };
 }
 
-export default async function Home() {
+async function getHomeData() {
+  "use cache: remote";
+  cacheLife({ revalidate: 300, expire: 3600 });
   const [stores, allProducts] = await Promise.all([
     prisma.store.findMany({
       where: { status: "approved" },
@@ -38,6 +41,12 @@ export default async function Home() {
       },
     }),
   ]);
+  return { stores, allProducts };
+}
+
+async function HomeContent() {
+  await connection();
+  const { stores, allProducts } = await getHomeData();
 
   const newArrivals: CarouselProduct[] = allProducts.slice(0, 10).map(toCarousel);
   const trending: CarouselProduct[] = allProducts.filter((p) => p.featured).slice(0, 10).map(toCarousel);
@@ -95,5 +104,13 @@ export default async function Home() {
         <ProductCarousel key={section.slug} title={section.name} products={section.products} />
       ))}
     </>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

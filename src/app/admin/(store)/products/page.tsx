@@ -5,7 +5,6 @@ import { formatPrice, parseJsonArray } from "@/lib/utils";
 import { deleteProduct } from "./actions";
 import { requireStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
 
 export default async function AdminProductsPage({ searchParams }: { searchParams: Promise<{ uploaded?: string }> }) {
   const uploaded = Number((await searchParams).uploaded ?? 0);

@@ -1,16 +1,26 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { cacheLife } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
 
-export const dynamic = "force-dynamic";
 
-export default async function StoresPage() {
+async function getStoresData() {
+  "use cache: remote";
+  cacheLife({ revalidate: 300, expire: 3600 });
   const stores = await prisma.store.findMany({
     where: { status: "approved" },
     orderBy: { name: "asc" },
     include: { _count: { select: { products: true, categories: true } } },
   });
+  return stores;
+}
+
+async function StoresContent() {
+  await connection();
+  const stores = await getStoresData();
 
   return (
     <div className="py-16 md:py-20">
@@ -63,5 +73,13 @@ export default async function StoresPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function StoresPage() {
+  return (
+    <Suspense fallback={null}>
+      <StoresContent />
+    </Suspense>
   );
 }

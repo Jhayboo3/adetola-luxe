@@ -1,16 +1,63 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { cacheLife } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray } from "@/lib/utils";
 import StoreHeader from "@/components/store/StoreHeader";
 import ProductGrid from "@/components/product/ProductGrid";
 
-export const dynamic = "force-dynamic";
+async function getStoreFront(slug: string) {
+  "use cache: remote";
+  cacheLife({ revalidate: 300, expire: 3600 });
+
+  const store = await prisma.store.findUnique({ where: { slug } });
+  if (!store) return null;
+
+  const [products, categories] = await Promise.all([
+    prisma.product.findMany({
+      where: { storeId: store.id, published: true },
+      orderBy: { createdAt: "desc" },
+      include: { category: true },
+    }),
+    prisma.category.findMany({
+      where: { storeId: store.id },
+      orderBy: { name: "asc" },
+      select: { name: true, slug: true },
+    }),
+  ]);
+
+  const mapped = (list: typeof products) =>
+    list.map((product) => ({
+      ...product,
+      createdAt: product.createdAt.toISOString(),
+      updatedAt: product.updatedAt.toISOString(),
+      images: parseJsonArray(product.images),
+      sizes: parseJsonArray(product.sizes),
+      colors: product.colorSelectable ? parseJsonArray(product.colors) : [],
+    }));
+
+  const available = products.filter((p) => p.stock > 0);
+  const soldOut = products.filter((p) => p.stock <= 0);
+
+  return {
+    store: { ...store, createdAt: store.createdAt.toISOString(), updatedAt: store.updatedAt.toISOString() },
+    products: mapped(products),
+    available: mapped(available),
+    soldOut: mapped(soldOut),
+    categories,
+  };
+}
+
+async function getStoreMeta(slug: string) {
+  "use cache: remote";
+  cacheLife({ revalidate: 300, expire: 3600 });
+  return prisma.store.findUnique({ where: { slug }, select: { name: true, description: true } });
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ store: string }> }): Promise<Metadata> {
   const { store: slug } = await params;
-  const store = await prisma.store.findUnique({ where: { slug }, select: { name: true, description: true } });
+  const store = await getStoreMeta(slug);
   if (!store) return { title: "Store not found" };
   return { title: `${store.name} — Storefront`, description: store.description || `Shop ${store.name}'s curated collection.` };
 }
@@ -27,31 +74,10 @@ function InlineBlock({ title, children }: { title: string; children?: React.Reac
 
 export default async function StorefrontPage({ params }: { params: Promise<{ store: string }> }) {
   const { store: slug } = await params;
-  const store = await prisma.store.findUnique({ where: { slug } });
-  if (!store || store.status !== "approved") notFound();
+  const data = await getStoreFront(slug);
+  if (!data || data.store.status !== "approved") notFound();
 
-  const [products, categories] = await Promise.all([
-    prisma.product.findMany({
-      where: { storeId: store.id, published: true },
-      orderBy: { createdAt: "desc" },
-      include: { category: true },
-    }),
-    prisma.category.findMany({
-      where: { storeId: store.id },
-      orderBy: { name: "asc" },
-      select: { name: true, slug: true },
-    }),
-  ]);
-
-  const available = products.filter((p) => p.stock > 0);
-  const soldOut = products.filter((p) => p.stock <= 0);
-  const mapped = (list: typeof products) =>
-    list.map((product) => ({
-      ...product,
-      images: parseJsonArray(product.images),
-      sizes: parseJsonArray(product.sizes),
-      colors: product.colorSelectable ? parseJsonArray(product.colors) : [],
-    }));
+  const { store, available, soldOut, categories } = data;
 
   return (
     <>
@@ -118,7 +144,7 @@ export default async function StorefrontPage({ params }: { params: Promise<{ sto
             <p className="mt-2 font-body text-[13px] text-muted">Check back soon for new arrivals.</p>
           </div>
         ) : (
-          <ProductGrid products={mapped(available)} storeSlug={slug} />
+          <ProductGrid products={available} storeSlug={slug} />
         )}
 
         {/* New arrivals */}
@@ -128,7 +154,7 @@ export default async function StorefrontPage({ params }: { params: Promise<{ sto
               <div className="mb-4 h-[2px] w-12 bg-gold" />
               <h2 className="font-heading text-[24px] font-medium text-black">New Arrivals</h2>
             </div>
-            <ProductGrid products={mapped(available.slice(0, 4))} storeSlug={slug} />
+            <ProductGrid products={available.slice(0, 4)} storeSlug={slug} />
           </>
         )}
 
@@ -140,7 +166,7 @@ export default async function StorefrontPage({ params }: { params: Promise<{ sto
             <p className="mt-2 mb-6 font-body text-[13px] text-muted">
               Recently sold pieces from this store.
             </p>
-            <ProductGrid products={mapped(soldOut)} storeSlug={slug} />
+            <ProductGrid products={soldOut} storeSlug={slug} />
           </div>
         )}
       </div>

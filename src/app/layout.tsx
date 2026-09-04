@@ -34,15 +34,15 @@ export default function RootLayout({
       className={`${notoSerif.variable} ${montserrat.variable} h-full`}
     >
       <body className="min-h-full flex flex-col antialiased">
-        <Providers>
-          <Header />
-          <Suspense fallback={null}>
+        <Suspense fallback={null}>
+          <Providers>
+            <Header />
             <ScrollRestorer />
-          </Suspense>
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <Toast />
-        </Providers>
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <Toast />
+          </Providers>
+        </Suspense>
       </body>
     </html>
   );

@@ -5,7 +5,6 @@ import CopyMeasurementsButton from "@/components/admin/CopyMeasurementsButton";
 import { requireStore } from "@/lib/store";
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from "@/lib/orders";
 
-export const dynamic = "force-dynamic";
 
 export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const q = (await searchParams).q?.trim() ?? "";

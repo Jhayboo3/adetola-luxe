@@ -3,7 +3,6 @@ import { formatPrice } from "@/lib/utils";
 import { createDiscount, deleteDiscount, toggleDiscount } from "./actions";
 import { requireStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
 export default async function AdminDiscountsPage() {
   const store = await requireStore();
   const discounts = await prisma.discountCode.findMany({ where: { storeId: store.id }, orderBy: { createdAt: "desc" } });

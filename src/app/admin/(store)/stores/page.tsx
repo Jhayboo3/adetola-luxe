@@ -5,7 +5,6 @@ import VerifiedBadge from "@/components/ui/VerifiedBadge";
 import { StoreManageActions } from "./manage-client";
 import { StoreVerifyButton } from "./verify-client";
 
-export const dynamic = "force-dynamic";
 
 export default async function AllStoresPage() {
   await requirePlatformAdmin();

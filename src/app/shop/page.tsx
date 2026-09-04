@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { displayColor, parseJsonArray } from "@/lib/utils";
 import { defaultStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
 
 export default async function ShopPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string }> }) {
   const params = await searchParams;

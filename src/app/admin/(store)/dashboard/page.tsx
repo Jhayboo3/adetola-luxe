@@ -4,7 +4,6 @@ import { formatPrice } from "@/lib/utils";
 import { requireStore } from "@/lib/store";
 import { orderStatusLabel, ORDER_STATUSES_EXCLUDED_FROM_REVENUE } from "@/lib/orders";
 
-export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
   const store = await requireStore();
