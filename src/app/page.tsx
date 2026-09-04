@@ -88,10 +88,6 @@ export default async function Home() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-[1200px] px-4 sm:px-8">
-        <div className="border-t border-line" />
-      </div>
-
       <ProductCarousel title="New Arrivals" href="/shop" products={newArrivals} />
       {trending.length > 0 && <ProductCarousel title="Trending" href="/shop" viewAllLabel="View All" products={trending} />}
 

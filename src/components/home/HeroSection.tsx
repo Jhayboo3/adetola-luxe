@@ -30,15 +30,6 @@ export default function HeroSection({
           <div className="absolute right-1/4 top-1/2 h-40 w-40 rounded-full bg-gold/15 blur-2xl animate-float-slow" style={{ animationDelay: "2s" }} />
         </div>
 
-        {/* Subtle diagonal line texture */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: "repeating-linear-gradient(45deg, #ffffff 0, #ffffff 1px, transparent 1px, transparent 24px)",
-          }}
-        />
-
         {/* Soft top highlight */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/10 to-transparent" />
 

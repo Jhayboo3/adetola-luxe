@@ -95,7 +95,7 @@ export default function SignupPage() {
             Sign in
           </Link>
         </p>
-        <div className="mt-6 border-t border-line pt-6 text-center">
+        <div className="mt-6 text-center">
           <p className="font-body text-[12px] text-muted">Want to sell on Larkvine?</p>
           <Link href="/sell" className="cta-secondary mt-3 inline-flex">Open a Store</Link>
         </div>

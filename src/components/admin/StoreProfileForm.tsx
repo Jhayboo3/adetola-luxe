@@ -255,7 +255,7 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
             </div>
           </div>
 
-          <div className="mt-6 border-t border-line pt-6">
+          <div className="mt-6">
             <h3 className="font-heading text-[15px] font-medium text-black">Contact Details</h3>
             <div className="mt-4 grid gap-5 md:grid-cols-2">
               <div>
@@ -287,7 +287,7 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
             </div>
           </div>
 
-          <div className="mt-6 border-t border-line pt-6">
+          <div className="mt-6">
             <h3 className="font-heading text-[15px] font-medium text-black">Store Information</h3>
             <div className="mt-4 space-y-5">
               <div>
@@ -323,7 +323,7 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
             </div>
           </div>
 
-          <div className="mt-6 flex items-center gap-3 border-t border-line pt-6">
+          <div className="mt-6 flex items-center gap-3">
             <Button type="submit" disabled={profilePending} className="min-h-10 px-6 text-[12px]">
               {profilePending ? "Saving…" : "Save Profile"}
             </Button>

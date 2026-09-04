@@ -84,7 +84,7 @@ export default async function StoreApplicationsPage() {
               )}
             </div>
 
-            <div className="mt-4 border-t border-line pt-4">
+            <div className="mt-4">
               <StoreDetailDisplay store={app} />
             </div>
 
@@ -115,7 +115,7 @@ export default async function StoreApplicationsPage() {
               </p>
             )}
 
-            <div className="mt-5 border-t border-line pt-4">
+            <div className="mt-5">
               <ApplicationActions id={app.id} name={app.name} showApprove={app.status !== "approved"} />
               <div className="mt-3 flex items-center gap-3">
                 <StoreVerifyButton id={app.id} name={app.name} verified={app.isVerified} />
