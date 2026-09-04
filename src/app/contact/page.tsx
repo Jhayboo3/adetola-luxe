@@ -29,11 +29,20 @@ export default function ContactPage() {
               <div className="mt-8 space-y-2">
                 <p>
                   <a
-                    href="tel:+2347011033320"
+                    href="mailto:jeremiahoshiokhame@gmail.com"
                     className="text-muted no-underline transition-colors hover:text-primary"
                   >
-                    07011033320
+                    jeremiahoshiokhame@gmail.com
                   </a>
+                </p>
+              </div>
+              <div className="mt-8 rounded-2xl border border-gold/40 bg-gold/10 p-5">
+                <p className="font-heading text-[15px] font-medium text-black">
+                  Any issues or delay with your vendor?
+                </p>
+                <p className="mt-1.5 font-body text-[12.5px] leading-relaxed text-muted">
+                  Report it to the administrator — you&apos;ll find their contact details
+                  in the site footer, and we&apos;ll step in to help resolve it.
                 </p>
               </div>
             </div>
