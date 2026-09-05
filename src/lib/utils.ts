@@ -18,7 +18,8 @@ export function slugify(text: string): string {
 
 export function parseJsonArray(value: string): string[] {
   try {
-    return JSON.parse(value);
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }

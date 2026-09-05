@@ -63,7 +63,7 @@ async function main() {
     const page = `/${slug}`;
     await hit(page);
     await sleep(300);
-    const html = await (await fetch(page)).text();
+    const html = await (await fetch(BASE + page)).text();
     const products = await findSlugs(html, "product");
     for (const prod of products.slice(0, 12)) {
       await hit(`/${prod}`);

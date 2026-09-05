@@ -39,7 +39,7 @@ export default function CheckoutClient({ profile }: { profile: Profile }) {
     const whatsapps = Array.isArray(data.whatsapps) ? data.whatsapps : [];
     for (const entry of whatsapps) window.open(entry.whatsappUrl, "_blank", "noopener,noreferrer");
     const ids = whatsapps.map((entry: { orderCode?: string }) => entry.orderCode).join(",");
-    clearCart(); router.push(`/order-confirmation/${ids ? `?ids=${ids}` : ""}`);
+    clearCart(); router.push(ids ? `/order-confirmation/ok?ids=${ids}` : "/");
   };
 
   if (!items.length && !submitted) return <div className="py-32 text-center"><h1 className="font-heading text-[24px]">Your cart is empty</h1><Link href="/shop" className="mt-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-primary">Browse the Archive</Link></div>;

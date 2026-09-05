@@ -74,7 +74,8 @@ export async function POST(request: Request) {
     const byId = new Map(products.map((product) => [product.id, product]));
 
     for (const [id, quantity] of requested.reduce((m, i) => m.set(i.productId, (m.get(i.productId) ?? 0) + i.quantity), new Map<string, number>())) {
-      if (byId.get(id)!.stock < quantity) return Response.json({ error: `${byId.get(id)!.name} does not have enough stock.` }, { status: 409 });
+      const product = byId.get(id)!;
+      if (product.stock < quantity) return Response.json({ error: `${product.name} does not have enough stock.` }, { status: 409 });
     }
 
     const normalized = requested.map((item) => {
