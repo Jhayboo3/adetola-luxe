@@ -19,6 +19,7 @@ export default function ProductDetails({ product, storeSlug, storeName }: { prod
   const [added, setAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const addItem = useCart((state) => state.addItem);
+  const cartItems = useCart((state) => state.items);
   const toast = useToast((state) => state.show);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -26,12 +27,17 @@ export default function ProductDetails({ product, storeSlug, storeName }: { prod
 
   const handleAdd = () => {
     if (soldOut) return;
-    if (quantity > product.stock) {
-      toast(`Only ${product.stock} in stock.`, "error", "Cannot add that many");
-      setQuantity(product.stock);
+    const alreadyInCart = cartItems
+      .filter((i) => i.productId === product.id && i.size === selectedSize && i.color === selectedColor)
+      .reduce((sum, i) => sum + i.quantity, 0);
+    const remaining = product.stock - alreadyInCart;
+    if (quantity > remaining) {
+      toast(`Only ${remaining} more in stock.`, "error", "Cannot add that many");
+      setQuantity(Math.max(1, remaining));
       return;
     }
     addItem({ id: `${product.id}-${selectedSize}-${selectedColor}`, productId: product.id, name: product.name, price: product.price, image: product.images[0] ?? "", size: selectedSize, color: selectedColor, quantity, storeSlug, storeName });
+    setQuantity(1);
     setAdded(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setAdded(false), 2200);

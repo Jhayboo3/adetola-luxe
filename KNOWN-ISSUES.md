@@ -169,6 +169,131 @@ cause is the workerd byte-stream reorder addressed in issue 1.
 
 ---
 
+## 5. Code audit — bugs found and fixed (Sep 2026)
+
+Full audit of the order/checkout, auth, product/admin, and storefront code. `tsc` and
+ESLint were already clean; the bugs below are logic/security issues that only show at
+runtime. Status reflects this run of fixes (not yet committed/deployed at time of writing).
+
+### 5.1 Fixed
+
+1. **Multi-store checkout was not atomic and a retry could silently drop stores** —
+   `src/app/api/orders/route.ts`. Each store's order was committed in its own D1 batch;
+   if a later store failed, earlier stores were already committed, and the idempotency
+   short-circuit then returned only the already-created stores on retry — the customer's
+   cart was cleared while a store's items were never ordered. Now **all** stores commit
+   in a **single D1 batch** (one transaction — a stock failure rolls every store back),
+   and a retry creates any stores missing for that `checkoutToken` instead of returning
+   early. A concurrent duplicate submit racing the `(storeId, checkoutToken)` unique
+   index now resolves to the already-created orders instead of a 500.
+
+2. **Checkout could strand the customer on a network error** —
+   `src/components/checkout/CheckoutClient.tsx`. `await response.json()` inside the click
+   handler had no try/catch/finally, so a network/edge failure left the button stuck on
+   "Preparing WhatsApp…" forever. The submit is now wrapped, JSON parsing is guarded, and
+   failures reset the button and show the error. Also, `window.open` runs only after an
+   `await`, which mobile browsers block — so the order-confirmation page now renders a
+   real **"Open WhatsApp" button per order** (`order-confirmation/[id]/page.tsx`) that
+   works even when the popup was blocked.
+
+3. **Order confirmation could show the wrong store's order (or 404) because it looked
+   orders up by the 5-char order code**, which is only unique per store and guessable.
+   The order API now returns the unguessable order **id**, the confirmation page looks up
+   by id, and WhatsApp numbers are resolved from the store/owner (`storeWhatsappFromRecord`
+   in `src/lib/store.ts`). Legacy code-only links still work via a fallback lookup.
+
+4. **Adding to cart could oversell** — `src/components/product/ProductDetails.tsx`.
+   The cart merges quantities by product+size+color, but "Add" only checked the new
+   quantity against stock, so with stock 3 the shopper could reach 6. Add now counts what
+   is already in the cart for that variant, clamps to what's left, and resets the quantity
+   to 1 after adding. The server's stock checks/triggers remain the backstop.
+
+5. **Stock reserved by WhatsApp orders was never released** —
+   `src/app/admin/(store)/orders/actions.ts`. Stock is decremented when an order is placed,
+   but there was no path that restored it, so every abandoned/cancelled negotiation
+   permanently drained inventory. Transitioning an order to `cancelled` now restores each
+   item's quantity (guarded against double-restore); unknown orders give a clean error
+   instead of a raw Prisma `P2025`.
+
+6. **Client-side validation failures were reported as HTTP 500** —
+   `src/app/api/orders/route.ts`. Bad size/colour selections in a stale cart were thrown
+   and caught by the top-level handler → 500. They are now collected and returned as 422.
+
+7. **Product admin gaps** — `src/app/admin/(store)/products/actions.ts`.
+   - `categoryId` from the form was never checked against the caller's store, so a vendor
+     could attach another store's (or a bogus) category. Now validated per store.
+   - Hard-deleting a product never removed its R2 images; orphaned objects stayed publicly
+     served. `deleteProduct` now deletes the product's R2 objects on hard delete.
+   - Uploads that succeeded just before a DB write failed (e.g. duplicate slug) were left
+     orphaned in R2. New uploads are tracked and cleaned up on failure.
+
+8. **Discount/category validation and raw DB errors** —
+   `discounts/actions.ts`, `categories/actions.ts`. Discount codes can now only be
+   `[A-Z0-9]{3,20}`, percentage values are capped at 100%, `minOrder`/`usageLimit` must be
+   non-negative, and duplicate codes/categories surface a friendly message instead of an
+   uncaught `P2002`.
+
+9. **Image endpoint hardening** — `src/app/api/product-images/[...key]/route.ts`. Added
+   `X-Content-Type-Options: nosniff` and refuse to serve objects whose stored content type
+   isn't in a short image allowlist, so attacker-chosen bytes labeled `image/png` can't be
+   sniffed into HTML on the same origin.
+
+10. **Open redirect on login** — `src/app/(auth)/login/page.tsx`. A `callbackUrl` of
+    `//evil.com` bypassed the `startsWith("/")` check and hard-navigated off-site. Now
+    only single-slash relative paths are allowed. Signup's "Min. 6 characters" copy was
+    also fixed to match the server's 8-character minimum.
+
+11. **Admin layout allowed anonymous render** — `src/app/admin/(store)/layout.tsx` now
+    explicitly `redirect`s signed-out users to `/admin/login` (defense in depth under the
+    middleware matcher).
+
+12. **Storefront category links were broken across three entry points** —
+    `src/app/[store]/page.tsx`. Category chips linked to `/shop?category=…`, which is
+    scoped to the *default* store (category slugs are only unique per store), and the
+    storefront never read `?category` at all — every chip was a dead end or empty page.
+    Chips now stay on the current storefront (`/[store]?category=…`), filter the grid and
+    counts, and highlight the active category with an "All" reset chip.
+
+### 5.2 Identified but NOT fixed here (action items / known limitations)
+
+- **Secrets & seed credentials (HIGH, do soon).** `prisma/seed.ts`/`seed.sql` create the
+  platform super-admin and demo vendors with the committed password `admin123`, and the
+  deploy artifact bundles `NEXTAUTH_SECRET="adetola-luxe-secret-key-change-in-production"`
+  with `NEXTAUTH_URL=http://localhost:3000` from the local `.env`. Consequences: the super
+  admin is protected by a guessable public password, and the baked-in placeholder secret
+  means tokens can be forged if it leaks — plus cookies may be issued without `Secure`.
+  Actions: rotate the production super-admin password, move the bootstrap password and
+  `AUTH_SECRET` into `wrangler secret`/Cloudflare env vars, and remove the `.env` value
+  from production builds.
+- **No rate limiting on auth endpoints** (login, signup, vendor-signup, forgot/reset
+  password). Add a KV/D1 limiter or Cloudflare rate-limit rules on `/api/auth/*`.
+- **Password reset does not invalidate existing sessions.** JWT sessions live up to 30
+  days and the `jwt` callback never consults the DB, so a reset after compromise leaves
+  stolen cookies valid. Needs a `sessionVersion`/`passwordChangedAt` column + async
+  `jwt`/`session` revalidation.
+- **Cart quantities are still unbounded client-side until the final server check** — the
+  cart `+` control has no stock cap (the persisted item doesn't carry stock); the API's
+  per-product aggregate check + the DB trigger remain the enforcement point and return 409.
+- **Price drift.** The cart stores the price at add-to-cart time; the server recomputes
+  from the current DB price, so a vendor editing a price mid-cart means the summary and
+  the WhatsApp quote can differ. Re-fetch live prices on checkout or confirm the server
+  total before redirect.
+- **`uploadFileKey` dedupes by `name:size`**, so two different files with the same name
+  and byte size collide in the multi-file picker, and the per-clothing-image create path
+  appends a random suffix per attempt — a retry after partial failure creates duplicates
+  instead of being idempotent. Key by content hash and make slugs deterministic.
+- **`discount` feature is dormant.** Codes can be created but nothing ever applies them or
+  enforces `expiresAt`/`usageLimit`; `Order.discount` is always `NULL`.
+- **Shipping messaging.** Cart copy says "Calculated at checkout" but no path computes or
+  displays shipping; orders hard-code `shipping = 0`. Reconcile the copy or surface
+  shipping consistently.
+- **`/shop` is still scoped to the default store** while a storefront can link to it from
+  legacy entry points; per-store category links now use `[store]?category=` instead.
+- **Store logo/cover uploads (vendor-signup) can strand R2 objects** if the user/store DB
+  insert fails afterwards, and soft-unpublished products keep their images (intended).
+
+---
+
 ## Recurring incident playbook
 
 1. Confirm scope: run `scripts/check-homepage.mjs` against `/`, `/shop`, and a storefront.

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { displayColor, formatPrice, parseJsonArray } from "@/lib/utils";
 import { isGarmentSize } from "@/lib/measurements";
+import { storeWhatsappFromRecord } from "@/lib/store";
 import { ORDER_STATUS_SENT_TO_WHATSAPP } from "@/lib/orders";
 
 type CheckoutItem = { productId: string; quantity: number; size: string; color?: string };
@@ -53,7 +54,14 @@ async function createOrderCode(storeId: string) {
   throw new Error("Could not generate an order number. Please try again.");
 }
 
-const fallbackWhatsapp = (process.env.WHATSAPP_ORDER_NUMBER || "2347011033320").replace(/\D/g, "");
+function whatsappResult(
+  store: { name: string; whatsapp?: string | null; phone?: string | null; owner?: { whatsapp?: string | null; phone?: string | null } | null },
+  orderCode: string,
+  id: string,
+  message: string,
+) {
+  return { store: store.name, orderCode, id, whatsappUrl: `https://wa.me/${storeWhatsappFromRecord(store)}?text=${encodeURIComponent(message)}` };
+}
 
 export async function POST(request: Request) {
   try {
@@ -78,18 +86,20 @@ export async function POST(request: Request) {
       if (product.stock < quantity) return Response.json({ error: `${product.name} does not have enough stock.` }, { status: 409 });
     }
 
+    const validationError: string[] = [];
     const normalized = requested.map((item) => {
       const product = byId.get(item.productId)!;
       const sizes = parseJsonArray(product.sizes);
       const size = item.size || "One Size";
-      if (sizes.length && !sizes.includes(size)) throw new Error(`Choose an available size for ${product.name}.`);
+      if (sizes.length && !sizes.includes(size)) validationError.push(`Choose an available size for ${product.name}.`);
       let color = "As shown";
       if (product.colorSelectable && parseJsonArray(product.colors).length > 0) {
         color = displayColor(item.color || "");
-        if (!parseJsonArray(product.colors).map(displayColor).includes(color)) throw new Error(`Choose an available colour for ${product.name}.`);
+        if (!parseJsonArray(product.colors).map(displayColor).includes(color)) validationError.push(`Choose an available colour for ${product.name}.`);
       }
       return { ...item, size, color, product };
     });
+    if (validationError.length) return Response.json({ error: validationError[0] }, { status: 422 });
 
     // Group items by store so each vendor gets its own order + WhatsApp message.
     const groups = new Map<string, typeof normalized>();
@@ -102,19 +112,21 @@ export async function POST(request: Request) {
     const { env } = await getCloudflareContext({ async: true });
     const now = new Date().toISOString();
     const gender = customer.gender === "Male" || customer.gender === "Female" ? customer.gender : null;
-    // Idempotency: any matching order across the involved stores short-circuits.
-    const existing = await prisma.order.findMany({ where: { checkoutToken: body.checkoutToken }, include: { store: { select: { id: true, name: true, whatsapp: true, phone: true, owner: { select: { whatsapp: true, phone: true } } } } } });
-    if (existing.length) {
-      const results = [];
-      for (const order of existing) {
-        const number = (order.store.whatsapp || order.store.phone || order.store.owner?.whatsapp || order.store.owner?.phone || fallbackWhatsapp).replace(/\D/g, "");
-        results.push({ store: order.store.name, orderCode: order.orderCode, whatsappUrl: `https://wa.me/${number}?text=${encodeURIComponent(order.notes || "")}` });
-      }
-      return Response.json({ whatsapps: results });
-    }
+    const address = `${customer.address}, ${customer.city}, ${customer.state}${customer.zip ? `, ${customer.zip}` : ""}`;
 
-    const results = [];
-    for (const [storeId, items] of groups) {
+    // Idempotency: an interrupted retry may already have created orders for some
+    // stores. Never short-circuit and drop the remaining stores — create any that
+    // are missing, then return everything together.
+    const existing = await prisma.order.findMany({
+      where: { checkoutToken: body.checkoutToken },
+      include: { store: { select: { id: true, name: true, whatsapp: true, phone: true, owner: { select: { whatsapp: true, phone: true } } } } },
+    });
+    const existingByStore = new Map(existing.map((order) => [order.storeId, order]));
+    const missing = [...groups].filter(([storeId]) => !existingByStore.has(storeId));
+
+    const statements: ReturnType<typeof env.DB.prepare>[] = [];
+    const createdMeta: { storeId: string; order: { id: string; orderCode: string; store: { name: string; whatsapp?: string | null; phone?: string | null; owner?: { whatsapp?: string | null; phone?: string | null } | null }; message: string } }[] = [];
+    for (const [storeId, items] of missing) {
       const store = byId.get(items[0].product.id)!.store;
       const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
       const orderCode = await createOrderCode(storeId);
@@ -123,24 +135,47 @@ export async function POST(request: Request) {
         orderCode,
         storeName: store.name,
         customerName: customer.name,
-        address: `${customer.address}, ${customer.city}, ${customer.state}${customer.zip ? `, ${customer.zip}` : ""}`,
+        address,
         deliveryInfo: customer.deliveryInfo ?? "",
         items: items.map((item) => ({ name: item.product.name, size: item.size, color: item.color, quantity: item.quantity, total: item.product.price * item.quantity })),
         total: subtotal,
       });
-      const statements = [
+      createdMeta.push({ storeId, order: { id: orderId, orderCode, store, message } });
+      statements.push(
         env.DB.prepare(`INSERT INTO "Order" ("id","storeId","orderCode","email","name","address","city","state","zip","country","phone","whatsapp","deliveryInfo","userId","checkoutToken","gender","size","measurementUnit","measurementSnapshot","measurementCapturedAt","subtotal","shipping","total","status","paymentMethod","paymentStatus","notes","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(orderId, storeId, orderCode, customer.email, customer.name, customer.address, customer.city, customer.state, customer.zip || "", "NG", customer.phone, customer.whatsapp, customer.deliveryInfo, session?.user?.id ?? null, body.checkoutToken, gender, customer.size, null, "{}", null, subtotal, 0, subtotal, ORDER_STATUS_SENT_TO_WHATSAPP, "whatsapp", "pending", message, now, now),
-        ...items.map((item) => env.DB.prepare(`INSERT INTO "OrderItem" ("id","storeId","orderId","productId","quantity","size","color","price") VALUES (?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(), storeId, orderId, item.productId, item.quantity, item.size, item.color, item.product.price)),
-      ];
+        ...items.map((item) => env.DB.prepare(`INSERT INTO "OrderItem" ("id","storeId","orderId","productId","quantity","size","color","price") VALUES (?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(), storeId, orderId, item.productId, item.quantity, item.size, item.color, item.product.price))
+      );
+    }
+
+    if (statements.length) {
+      // One D1 batch across all involved stores: D1 batches run in a single
+      // transaction, so a stock failure in one store rolls back every store's
+      // inserts and stock decrements instead of committing a partial order.
       try {
         await env.DB.batch(statements);
       } catch (error) {
-        if (error instanceof Error && /stock/i.test(error.message)) return Response.json({ error: "An item just sold out. Please review your cart." }, { status: 409 });
+        const message = error instanceof Error ? error.message : String(error ?? "");
+        if (/stock/i.test(message)) return Response.json({ error: "An item just sold out. Please review your cart." }, { status: 409 });
+        // A concurrent duplicate submit (same token) can race this one on the
+        // (storeId, checkoutToken) unique index. If the orders already exist,
+        // return them instead of failing the customer's checkout.
+        if (/unique constraint/i.test(message)) {
+          const raced = await prisma.order.findMany({
+            where: { checkoutToken: body.checkoutToken },
+            include: { store: { select: { id: true, name: true, whatsapp: true, phone: true, owner: { select: { whatsapp: true, phone: true } } } } },
+          });
+          if (raced.length) {
+            return Response.json({ whatsapps: raced.map((order) => whatsappResult(order.store, order.orderCode || "", order.id, order.notes || `New order #${order.orderCode || ""}`)) });
+          }
+        }
         throw error;
       }
-      const number = (store.whatsapp || store.phone || store.owner?.whatsapp || store.owner?.phone || fallbackWhatsapp).replace(/\D/g, "");
-      results.push({ store: store.name, orderCode, whatsappUrl: `https://wa.me/${number}?text=${encodeURIComponent(message)}` });
     }
+
+    const results = [
+      ...existing.map((order) => whatsappResult(order.store, order.orderCode || "", order.id, order.notes || `New order #${order.orderCode || ""}`)),
+      ...createdMeta.map(({ order }) => whatsappResult(order.store, order.orderCode, order.id, order.message)),
+    ];
 
     return Response.json({ whatsapps: results });
   } catch (error) {

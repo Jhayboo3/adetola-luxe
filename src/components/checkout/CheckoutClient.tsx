@@ -33,13 +33,23 @@ export default function CheckoutClient({ profile }: { profile: Profile }) {
       zip: String(form.get("zip") || ""), deliveryInfo: String(form.get("deliveryInfo") || ""),
       size,
     };
-    const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkoutToken: checkoutToken.current, items: items.map((item) => ({ productId: item.productId, quantity: item.quantity, size: item.size, color: item.color })), customer }) });
-    const data = await response.json();
-    if (!response.ok) { setError(data.error || "Could not place your order."); setSubmitted(false); return; }
-    const whatsapps = Array.isArray(data.whatsapps) ? data.whatsapps : [];
-    for (const entry of whatsapps) window.open(entry.whatsappUrl, "_blank", "noopener,noreferrer");
-    const ids = whatsapps.map((entry: { orderCode?: string }) => entry.orderCode).join(",");
-    clearCart(); router.push(ids ? `/order-confirmation/ok?ids=${ids}` : "/");
+    try {
+      const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkoutToken: checkoutToken.current, items: items.map((item) => ({ productId: item.productId, quantity: item.quantity, size: item.size, color: item.color })), customer }) });
+      let data: { whatsapps?: { whatsappUrl?: string; id?: string; orderCode?: string }[]; error?: string } | null = null;
+      try { data = await response.json(); } catch { data = null; }
+      if (!response.ok || !data || !Array.isArray(data.whatsapps)) {
+        setError(data?.error || "Could not place your order. Please try again.");
+        setSubmitted(false);
+        return;
+      }
+      const whatsapps = data.whatsapps;
+      for (const entry of whatsapps) { if (entry.whatsappUrl) window.open(entry.whatsappUrl, "_blank", "noopener,noreferrer"); }
+      const ids = whatsapps.map((entry) => entry.id || entry.orderCode || "").filter(Boolean).join(",");
+      clearCart(); router.push(ids ? `/order-confirmation/ok?ids=${ids}` : "/");
+    } catch {
+      setError("Could not place your order. Please try again.");
+      setSubmitted(false);
+    }
   };
 
   if (!items.length && !submitted) return <div className="py-32 text-center"><h1 className="font-heading text-[24px]">Your cart is empty</h1><Link href="/shop" className="mt-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-primary">Browse the Archive</Link></div>;

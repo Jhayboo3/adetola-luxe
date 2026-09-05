@@ -32,7 +32,11 @@ export default function LoginPage() {
     }
 
     const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
-    router.push(callbackUrl?.startsWith("/") ? callbackUrl : "/");
+    // Only allow same-origin relative paths. A value like `//evil.com` or an
+    // encoded backslash would otherwise be treated as a path and hard-navigate
+    // the user off-site after login.
+    const isSafePath = typeof callbackUrl === "string" && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") && !callbackUrl.startsWith("/\\");
+    router.push(isSafePath ? callbackUrl : "/");
     router.refresh();
   };
 

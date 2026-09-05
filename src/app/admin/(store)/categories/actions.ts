@@ -23,7 +23,12 @@ export async function createCategory(formData: FormData) {
     const parent = await prisma.category.findFirst({ where: { id: parentId, parentId: null, storeId: store.id }, select: { id: true } });
     if (!parent) throw new Error("Choose a valid top-level category.");
   }
-  await prisma.category.create({ data: { name, slug: slugify(name), description: description || null, parentId, storeId: store.id } });
+  try {
+    await prisma.category.create({ data: { name, slug: slugify(name), description: description || null, parentId, storeId: store.id } });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Unique constraint")) throw new Error("A category with this name already exists.");
+    throw error;
+  }
   revalidatePath("/admin/categories");
   revalidatePath("/shop");
 }

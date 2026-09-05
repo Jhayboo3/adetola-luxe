@@ -19,10 +19,25 @@ async function requireAdmin() {
   }
 }
 
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+async function deleteR2Keys(keys: string[]) {
+  if (!keys.length) return;
+  const { env } = await getCloudflareContext({ async: true });
+  await Promise.all(keys.map((key) => env.PRODUCT_IMAGES.delete(key).catch(() => undefined)));
+}
+
+function imageUrlsToKeys(urls: string[]): string[] {
+  const prefix = "/api/product-images/";
+  return urls
+    .filter((url) => url.startsWith(prefix))
+    .map((url) => url.slice(prefix.length))
+    .filter(Boolean);
+}
+
 async function saveImage(file: File) {
   if (!file.size) return null;
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  if (!allowedTypes.includes(file.type)) throw new Error("Use a JPG, PNG, or WebP image.");
+  if (!ALLOWED_TYPES.includes(file.type)) throw new Error("Use a JPG, PNG, or WebP image.");
   if (file.size > 5 * 1024 * 1024) throw new Error("The image must be smaller than 5 MB.");
 
   const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
@@ -35,17 +50,6 @@ async function saveImage(file: File) {
     },
   });
   return { key, url: `/api/product-images/${key}` };
-}
-
-async function saveImages(files: File[], existingImages: string[]) {
-  const uploads = files.filter((file) => file.size > 0);
-  if (uploads.length > 20) throw new Error("Choose no more than 20 images at once.");
-  if (uploads.length + existingImages.length > 10) throw new Error("A product can have up to 10 images.");
-  for (const file of uploads) {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Use only JPG, PNG, or WebP images.");
-    if (file.size > 5 * 1024 * 1024) throw new Error(`${file.name} must be smaller than 5 MB.`);
-  }
-  return Promise.all(uploads.map(saveImage));
 }
 
 function text(formData: FormData, key: string) {
@@ -80,28 +84,61 @@ function baseProductData(formData: FormData) {
   };
 }
 
-async function productData(formData: FormData, existingImages: string[] = []) {
+// Upload new images one at a time, recording every key as it lands so a later
+// failure can clean up the objects that already made it to R2.
+async function uploadImages(files: File[], existingImages: string[], newKeys: string[]): Promise<string[]> {
+  const uploads = files.filter((file) => file.size > 0);
+  if (uploads.length > 20) throw new Error("Choose no more than 20 images at once.");
+  if (uploads.length + existingImages.length > 10) throw new Error("A product can have up to 10 images.");
+  const urls: string[] = [];
+  for (const file of uploads) {
+    const result = await saveImage(file);
+    if (result) {
+      newKeys.push(result.key);
+      urls.push(result.url);
+    }
+  }
+  return urls;
+}
+
+async function productData(formData: FormData, existingImages: string[] = [], newKeys: string[] = []) {
   const base = baseProductData(formData);
-  const images = await saveImages(formData.getAll("images") as File[], existingImages);
-  return { ...base, images: JSON.stringify([...images.filter((image): image is { key: string; url: string } => Boolean(image)).map((image) => image.url), ...existingImages]) };
+  const urls = await uploadImages(formData.getAll("images") as File[], existingImages, newKeys);
+  return { ...base, images: JSON.stringify([...urls, ...existingImages]) };
+}
+
+// A category may only belong to the caller's own store. Cross-store or bogus
+// ids would corrupt the catalogue, so reject them up front.
+async function ownedCategoryId(storeId: string, categoryId: string | null) {
+  if (!categoryId) return null;
+  const category = await prisma.category.findFirst({ where: { id: categoryId, storeId }, select: { id: true } });
+  if (!category) throw new Error("Choose a valid category for your store.");
+  return categoryId;
 }
 
 export async function createProduct(_state: ProductFormState, formData: FormData): Promise<ProductFormState> {
   let created = 0;
   const completedFiles: string[] = [];
   const failures: string[] = [];
+  const newKeys: string[] = [];
   try {
     await requireAdmin();
     const store = await requireStore();
     const base = baseProductData(formData);
+    base.categoryId = await ownedCategoryId(store.id, base.categoryId);
     const files = (formData.getAll("images") as File[]).filter((file) => file.size > 0);
     const separateProducts = formData.get("separateProducts") === "on";
     if (files.length > 20) return { error: "Choose no more than 20 clothing images at once." };
 
     if (!separateProducts) {
-      const data = await productData(formData);
-      await prisma.product.create({ data: { ...data, storeId: store.id } });
-      created = 1;
+      try {
+        const data = await productData(formData, [], newKeys);
+        await prisma.product.create({ data: { ...data, storeId: store.id } });
+        created = 1;
+      } catch (error) {
+        await deleteR2Keys(newKeys);
+        throw error;
+      }
     } else {
       if (!files.length) return { error: "Choose at least one clothing image." };
       const results = await Promise.allSettled(files.map(async (file, index) => {
@@ -137,14 +174,17 @@ export async function createProduct(_state: ProductFormState, formData: FormData
 }
 
 export async function updateProduct(id: string, _state: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  const newKeys: string[] = [];
   try {
     await requireAdmin();
     const store = await requireStore();
     const current = await prisma.product.findFirst({ where: { id, storeId: store.id } });
     if (!current) return { error: "Product not found." };
-    const data = await productData(formData, JSON.parse(current.images));
+    const data = await productData(formData, JSON.parse(current.images), newKeys);
+    data.categoryId = await ownedCategoryId(store.id, data.categoryId);
     await prisma.product.update({ where: { id, storeId: store.id }, data });
   } catch (error) {
+    await deleteR2Keys(newKeys);
     if (error instanceof Error && error.message.includes("Unique constraint")) return { error: "That slug is already in use." };
     return { error: error instanceof Error ? error.message : "Could not update product." };
   }
@@ -157,9 +197,18 @@ export async function deleteProduct(formData: FormData) {
   await requireAdmin();
   const store = await requireStore();
   const id = text(formData, "id");
+  const current = await prisma.product.findFirst({ where: { id, storeId: store.id }, select: { images: true } });
+  if (!current) throw new Error("Product not found.");
   const orderCount = await prisma.orderItem.count({ where: { productId: id, storeId: store.id } });
-  if (orderCount) await prisma.product.update({ where: { id, storeId: store.id }, data: { published: false } });
-  else await prisma.product.delete({ where: { id, storeId: store.id } });
+  if (orderCount) {
+    // Has sales history: keep the row (soft-unpublish) so order records still resolve.
+    await prisma.product.update({ where: { id, storeId: store.id }, data: { published: false } });
+  } else {
+    let keys: string[] = [];
+    try { keys = imageUrlsToKeys(JSON.parse(current.images)); } catch { keys = []; }
+    await prisma.product.delete({ where: { id, storeId: store.id } });
+    if (keys.length) await deleteR2Keys(keys);
+  }
   revalidatePath("/admin/products");
   revalidatePath("/shop");
 }

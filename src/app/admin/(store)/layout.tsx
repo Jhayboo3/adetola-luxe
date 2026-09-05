@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { STORE_STATUSES, isSuperAdminRole } from "@/lib/store";
@@ -8,6 +9,11 @@ import { PendingStoreNotice } from "../pending-notice";
 export default async function AdminStoreLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const role = (session?.user as { role?: string } | undefined)?.role;
+
+  // Defense in depth: the middleware also blocks anonymous visitors, but the
+  // layout must never render store/admin chrome to a signed-out user if the
+  // middleware is ever skipped.
+  if (!session?.user) redirect("/admin/login");
 
   // A pending/rejected vendor must not reach any store management page. Show a
   // clear notice until a super admin approves (or the application is rejected).

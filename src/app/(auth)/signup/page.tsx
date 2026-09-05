@@ -78,10 +78,10 @@ export default function SignupPage() {
             id="password"
             type="password"
             label="Password"
-            placeholder="Min. 6 characters"
+            placeholder="Min. 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
+            minLength={8}
             required
           />
           <Button type="submit" fullWidth disabled={loading}>

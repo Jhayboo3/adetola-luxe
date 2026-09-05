@@ -72,12 +72,19 @@ function InlineBlock({ title, children }: { title: string; children?: React.Reac
   );
 }
 
-export default async function StorefrontPage({ params }: { params: Promise<{ store: string }> }) {
+export default async function StorefrontPage({ params, searchParams }: { params: Promise<{ store: string }>; searchParams: Promise<{ category?: string }> }) {
   const { store: slug } = await params;
+  const { category } = await searchParams;
   const data = await getStoreFront(slug);
   if (!data || data.store.status !== "approved") notFound();
 
   const { store, available, soldOut, categories } = data;
+  // Category slugs are only unique per store, so the chip links must stay on
+  // this storefront. Unknown/foreign categories fall back to the full grid.
+  const activeCategory = categories.some((cat) => cat.slug === category) ? category : null;
+  const matchesCategory = (product: { category?: { slug: string } | null }) => !activeCategory || product.category?.slug === activeCategory;
+  const filteredAvailable = available.filter(matchesCategory);
+  const filteredSoldOut = soldOut.filter(matchesCategory);
 
   return (
     <>
@@ -117,15 +124,28 @@ export default async function StorefrontPage({ params }: { params: Promise<{ sto
           <div className="mb-10">
             <h2 className="font-heading text-[20px] font-medium text-black">Categories</h2>
             <div className="mt-4 flex flex-wrap gap-2.5">
-              {categories.map((cat) => (
+              {activeCategory && (
                 <Link
-                  key={cat.slug}
-                  href={`/shop?category=${cat.slug}`}
-                  className="rounded-full border border-line px-4 py-2 font-body text-[12px] text-muted no-underline transition-colors hover:border-primary hover:text-primary"
+                  key="all"
+                  href={`/${slug}`}
+                  className="rounded-full border border-black bg-black px-4 py-2 font-body text-[12px] text-white no-underline transition-colors"
                 >
-                  {cat.name}
+                  All
                 </Link>
-              ))}
+              )}
+              {categories.map((cat) => {
+                const isActive = activeCategory === cat.slug;
+                return (
+                  <Link
+                    key={cat.slug}
+                    href={`/${slug}?category=${cat.slug}`}
+                    aria-current={isActive ? "true" : undefined}
+                    className={`rounded-full border px-4 py-2 font-body text-[12px] no-underline transition-colors ${isActive ? "border-black bg-black text-white" : "text-muted hover:border-primary hover:text-primary"}`}
+                  >
+                    {cat.name}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
@@ -135,38 +155,39 @@ export default async function StorefrontPage({ params }: { params: Promise<{ sto
           <div className="mb-4 h-[2px] w-12 bg-gold" />
           <h2 className="font-heading text-[26px] font-medium text-black">Shop the Collection</h2>
           <p className="mt-2 font-body text-[13px] text-muted">
-            {available.length} {available.length === 1 ? "product" : "products"} available
+            {filteredAvailable.length} {filteredAvailable.length === 1 ? "product" : "products"} available
+            {activeCategory ? ` in ${categories.find((cat) => cat.slug === activeCategory)?.name}` : ""}
           </p>
         </div>
-        {available.length === 0 ? (
+        {filteredAvailable.length === 0 ? (
           <div className="border border-dashed border-line py-16 text-center">
-            <p className="font-heading text-[18px] text-black">This store is getting ready</p>
+            <p className="font-heading text-[18px] text-black">{activeCategory ? "Nothing in this category yet" : "This store is getting ready"}</p>
             <p className="mt-2 font-body text-[13px] text-muted">Check back soon for new arrivals.</p>
           </div>
         ) : (
-          <ProductGrid products={available} storeSlug={slug} />
+          <ProductGrid products={filteredAvailable} storeSlug={slug} />
         )}
 
         {/* New arrivals */}
-        {available.length > 4 && (
+        {filteredAvailable.length > 4 && (
           <>
             <div className="mt-16 mb-6">
               <div className="mb-4 h-[2px] w-12 bg-gold" />
               <h2 className="font-heading text-[24px] font-medium text-black">New Arrivals</h2>
             </div>
-            <ProductGrid products={available.slice(0, 4)} storeSlug={slug} />
+            <ProductGrid products={filteredAvailable.slice(0, 4)} storeSlug={slug} />
           </>
         )}
 
         {/* Sold-out products */}
-        {soldOut.length > 0 && (
+        {filteredSoldOut.length > 0 && (
           <div className="mt-16">
             <div className="mb-4 h-[2px] w-12 bg-gold" />
             <h2 className="font-heading text-[24px] font-medium text-black">Sold Out</h2>
             <p className="mt-2 mb-6 font-body text-[13px] text-muted">
               Recently sold pieces from this store.
             </p>
-            <ProductGrid products={soldOut} storeSlug={slug} />
+            <ProductGrid products={filteredSoldOut} storeSlug={slug} />
           </div>
         )}
       </div>
