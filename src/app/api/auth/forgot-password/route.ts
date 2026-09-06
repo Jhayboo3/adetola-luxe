@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     data: {
       tokenHash: await hashResetToken(token),
       userId: user.id,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     },
   });
 
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       from: env.RESEND_FROM_EMAIL || "Larkvine <onboarding@resend.dev>",
       to: [user.email],
       subject: "Reset your Larkvine password",
-      html: `<div style="font-family:Arial,sans-serif;color:#111;line-height:1.6"><h2>Reset your password</h2><p>Hello ${escapeHtml(user.name)},</p><p>Use the button below to choose a new password. This link expires in one hour.</p><p><a href="${resetUrl.toString()}" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none">Reset password</a></p><p>If you did not request this, you can ignore this email.</p></div>`,
+      html: `<div style="font-family:Arial,sans-serif;color:#111;line-height:1.6"><h2>Reset your password</h2><p>Hello ${escapeHtml(user.name)},</p><p>Use the button below to choose a new password. This link expires in 24 hours.</p><p><a href="${resetUrl.toString()}" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none">Reset password</a></p><p>If you did not request this, you can ignore this email.</p></div>`,
     }),
   });
 
