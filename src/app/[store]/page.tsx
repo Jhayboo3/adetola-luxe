@@ -76,7 +76,10 @@ export default async function StorefrontPage({ params, searchParams }: { params:
   const { store: slug } = await params;
   const { category } = await searchParams;
   const data = await getStoreFront(slug);
-  if (!data || data.store.status !== "approved") notFound();
+  // Approval is decided from a FRESH database read, never the cached product
+  // snapshot: a stale cache entry must not expose a pending/suspended store.
+  const liveStore = await prisma.store.findUnique({ where: { slug }, select: { status: true } });
+  if (!data || !liveStore || liveStore.status !== "approved") notFound();
 
   const { store, available, soldOut, categories } = data;
   // Category slugs are only unique per store, so the chip links must stay on
