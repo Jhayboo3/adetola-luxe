@@ -28,6 +28,11 @@ export async function approveApplication(formData: FormData) {
   revalidatePath("/admin/applications");
   revalidatePath("/admin/stores");
   revalidatePath("/", "layout");
+  // The newly live storefront may have been cached as not-found while pending —
+  // purge its own page and any place the store is listed so it appears at once.
+  revalidatePath(`/${store.slug}`);
+  revalidatePath("/stores");
+  revalidatePath("/shop");
 }
 
 export async function rejectApplication(formData: FormData) {
@@ -50,4 +55,6 @@ export async function rejectApplication(formData: FormData) {
 
   revalidatePath("/admin/applications");
   revalidatePath("/admin/stores");
+  revalidatePath(`/${store.slug}`);
+  revalidatePath("/stores");
 }

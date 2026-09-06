@@ -26,6 +26,11 @@ export default auth((req) => {
     if (isPlatformRoute && role !== "admin") {
       return redirectTo(req, "/admin/login");
     }
+    // A platform admin has no owned store: vendor-only pages (dashboard,
+    // orders, products, …) would throw. Keep them on the platform tools.
+    if (role === "admin" && !isPlatformRoute) {
+      return redirectTo(req, "/admin/applications");
+    }
     if (pathname === "/admin") {
       return redirectTo(req, role === "admin" ? "/admin/applications" : "/admin/dashboard");
     }
