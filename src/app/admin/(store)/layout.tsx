@@ -31,11 +31,11 @@ export default async function AdminStoreLayout({ children }: { children: React.R
     }
   }
 
-  // A platform super admin (or any authenticated user) with no owned store must
-  // not reach the store-scoped management pages. Show a friendly notice instead
-  // of letting requireStore() throw an unhandled error. Platform admins can
-  // still reach their platform routes (/admin/applications, /admin/stores).
-  if (session?.user) {
+  // A platform super admin with no owned store must still reach the platform
+  // pages (/admin/applications, /admin/stores) — only vendors need a linked,
+  // approved store. Show the friendly notice instead of letting requireStore()
+  // throw an unhandled error.
+  if (role === "vendor") {
     const store = await prisma.store.findFirst({ where: { ownerId: session.user.id } });
     if (!store) {
       return (
