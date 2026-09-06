@@ -21,7 +21,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
 
         <div className="relative z-10 flex h-full flex-col justify-between p-12">
           <Link href="/" className="inline-flex w-fit items-center gap-3 no-underline">
-            <Image src="/brand-logo.png" alt="Larkvine" width={40} height={40} className="h-10 w-10 object-contain" />
+            <Image src="/logomark.png" alt="Larkvine" width={40} height={40} className="h-10 w-10 rounded-full object-cover" />
             <span className="font-heading text-2xl tracking-wide text-white">Larkvine</span>
           </Link>
 
@@ -41,7 +41,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 items-center justify-center px-6 py-16 sm:px-10">
         <div className="w-full max-w-md">
           <Link href="/" className="mb-10 inline-flex w-fit items-center gap-2.5 no-underline lg:hidden">
-            <Image src="/logomark.png" alt="Larkvine" width={32} height={32} className="h-8 w-8 object-contain" />
+            <Image src="/logomark.png" alt="Larkvine" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
             <span className="font-heading text-xl tracking-wide text-black">Larkvine</span>
           </Link>
           {children}
