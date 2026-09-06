@@ -256,15 +256,17 @@ runtime. Status reflects this run of fixes (not yet committed/deployed at time o
 
 ### 5.2 Identified but NOT fixed here (action items / known limitations)
 
-- **Secrets & seed credentials (HIGH, do soon).** `prisma/seed.ts`/`seed.sql` create the
-  platform super-admin and demo vendors with the committed password `admin123`, and the
-  deploy artifact bundles `NEXTAUTH_SECRET="adetola-luxe-secret-key-change-in-production"`
-  with `NEXTAUTH_URL=http://localhost:3000` from the local `.env`. Consequences: the super
-  admin is protected by a guessable public password, and the baked-in placeholder secret
-  means tokens can be forged if it leaks — plus cookies may be issued without `Secure`.
-  Actions: rotate the production super-admin password, move the bootstrap password and
-  `AUTH_SECRET` into `wrangler secret`/Cloudflare env vars, and remove the `.env` value
-  from production builds.
+- **Secrets & seed credentials (HIGH — partly fixed Sep 2026).** `prisma/seed.ts`/`seed.sql` create the
+  platform super-admin and demo vendors with the committed password `admin123`, and the deploy artifact
+  used to bundle `NEXTAUTH_SECRET="adetola-luxe-secret-key-change-in-production"` with
+  `NEXTAUTH_URL=http://localhost:3000` from the local `.env`. Consequences: the super admin is protected
+  by a guessable public password, and the baked-in placeholder secret meant tokens could be forged if it
+  leaked — plus cookies were issued without `Secure`, and **sign-out redirected to `localhost:3000`**.
+  Resolved: `scripts/strip-standalone-env.mjs` (wired into `open-next.config.ts` build) stops the local
+  `.env` from shipping in the worker, and real `AUTH_URL=https://larkvine.org` + a strong `AUTH_SECRET`
+  are set as Cloudflare secrets. Sessions were invalidated once by the secret rotation (everyone must sign
+  back in). Remaining action: rotate the production super-admin/vendor bootstrap passwords so the committed
+  `admin123` hash no longer works.
 - **No rate limiting on auth endpoints** (login, signup, vendor-signup, forgot/reset
   password). Add a KV/D1 limiter or Cloudflare rate-limit rules on `/api/auth/*`.
 - **Password reset does not invalidate existing sessions.** JWT sessions live up to 30
