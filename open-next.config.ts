@@ -13,6 +13,9 @@ export default {
 	// corrupting large `self.__next_f.push` flight chunks. Remove `type:"bytes"`
 	// from createInlinedDataReadableStream so chunks flow whole. Runs after the
 	// inner `next build` (which produces .next/standalone) and before the server
-	// bundle is created, so the patch is baked into the worker.
-	buildCommand: "npm run build && node scripts/patch-no-type-bytes.mjs",
+	// bundle is created, so the patch is baked into the worker. The standalone
+	// `.env` (copied from the build machine's local `.env`) is stripped so dev
+	// NEXTAUTH_URL/NEXTAUTH_SECRET values never ship to production.
+	buildCommand:
+		"npm run build && node scripts/patch-no-type-bytes.mjs && node scripts/strip-standalone-env.mjs",
 };
