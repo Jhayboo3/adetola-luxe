@@ -5,6 +5,7 @@ import { cacheLife } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray } from "@/lib/utils";
 import StoreHeader from "@/components/store/StoreHeader";
+import StoreDetails from "@/components/store/StoreDetails";
 import ProductGrid from "@/components/product/ProductGrid";
 
 async function getStoreFront(slug: string) {
@@ -62,16 +63,6 @@ export async function generateMetadata({ params }: { params: Promise<{ store: st
   return { title: `${store.name} — Storefront`, description: store.description || `Shop ${store.name}'s curated collection.` };
 }
 
-function InlineBlock({ title, children }: { title: string; children?: React.ReactNode }) {
-  if (!children) return null;
-  return (
-    <div className="rounded-xl border border-line bg-white p-5">
-      <h3 className="font-body text-[11px] font-semibold uppercase tracking-[2px] text-muted">{title}</h3>
-      <div className="mt-2 font-body text-[13px] leading-relaxed text-ink/80">{children}</div>
-    </div>
-  );
-}
-
 export default async function StorefrontPage({ params, searchParams }: { params: Promise<{ store: string }>; searchParams: Promise<{ category?: string }> }) {
   const { store: slug } = await params;
   const { category } = await searchParams;
@@ -109,18 +100,19 @@ export default async function StorefrontPage({ params, searchParams }: { params:
       />
 
       <div className="mx-auto max-w-[1200px] px-8 py-12">
-        {/* Store detail info blocks */}
-        {(store.aboutStore || store.productsDescription || store.openingHours || store.deliveryAreas || store.pickupInformation || store.paymentMethods || store.returnPolicy) && (
-          <div className="mb-14 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <InlineBlock title="About">{store.aboutStore}</InlineBlock>
-            <InlineBlock title="What we sell">{store.productsDescription}</InlineBlock>
-            <InlineBlock title="Opening hours">{store.openingHours}</InlineBlock>
-            <InlineBlock title="Delivery areas">{store.deliveryAreas}</InlineBlock>
-            <InlineBlock title="Pickup information">{store.pickupInformation}</InlineBlock>
-            <InlineBlock title="Payment methods">{store.paymentMethods}</InlineBlock>
-            <InlineBlock title="Returns & exchange">{store.returnPolicy}</InlineBlock>
-          </div>
-        )}
+        {/* Store details — collapsed behind a "More about" dropdown */}
+        <StoreDetails
+          storeName={store.name}
+          blocks={[
+            { title: "About", content: store.aboutStore },
+            { title: "What we sell", content: store.productsDescription },
+            { title: "Opening hours", content: store.openingHours },
+            { title: "Delivery areas", content: store.deliveryAreas },
+            { title: "Pickup information", content: store.pickupInformation },
+            { title: "Payment methods", content: store.paymentMethods },
+            { title: "Returns & exchange", content: store.returnPolicy },
+          ].filter((block): block is { title: string; content: string } => Boolean(block.content))}
+        />
 
         {/* Product categories */}
         {categories.length > 0 && (
