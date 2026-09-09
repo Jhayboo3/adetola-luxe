@@ -61,7 +61,7 @@ function baseProductData(formData: FormData) {
   const description = text(formData, "description");
   const price = Number(text(formData, "price"));
   const stock = Number(text(formData, "stock"));
-  if (!name || !description) throw new Error("Name and description are required.");
+  if (!name) throw new Error("Name is required.");
   if (!Number.isFinite(price) || price <= 0) throw new Error("Enter a valid price greater than zero.");
   if (!Number.isInteger(stock) || stock < 0) throw new Error("Stock must be a whole number of zero or more.");
 
