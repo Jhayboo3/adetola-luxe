@@ -11,6 +11,7 @@ import {
   updateStoreProfile,
   type StoreProfileState,
 } from "@/app/admin/(store)/store/actions";
+import { compressImageFile } from "@/lib/image-compress";
 
 type StoreShape = {
   name: string;
@@ -41,8 +42,7 @@ type StoreShape = {
   returnPolicy: string | null;
 };
 
-const MAX_LOGO_BYTES = 2 * 1024 * 1024;
-const MAX_COVER_BYTES = 5 * 1024 * 1024;
+const MAX_ORIGINAL_BYTES = 30 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 const FIELD_LABEL = "font-body text-[12px] font-medium text-black";
@@ -87,23 +87,61 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [compressedLogo, setCompressedLogo] = useState<File | null>(null);
+  const [compressedCover, setCompressedCover] = useState<File | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
 
-  const onLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!ALLOWED.includes(file.type)) { window.alert("Please use a JPG, PNG or WebP image."); return; }
-    if (file.size > MAX_LOGO_BYTES) { window.alert("Logo must be smaller than 2 MB."); return; }
-    if (logoPreview) URL.revokeObjectURL(logoPreview);
-    setLogoPreview(URL.createObjectURL(file));
+    if (file.size > MAX_ORIGINAL_BYTES) { window.alert("Logo must be smaller than 30 MB."); return; }
+    setLogoBusy(true);
+    try {
+      const compressed = await compressImageFile(file);
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+      setCompressedLogo(compressed);
+      setLogoPreview(URL.createObjectURL(compressed));
+    } catch {
+      window.alert("Could not process the image. Please try another JPG, PNG or WebP photo.");
+    } finally {
+      setLogoBusy(false);
+    }
   };
 
-  const onCover = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!ALLOWED.includes(file.type)) { window.alert("Please use a JPG, PNG or WebP image."); return; }
-    if (file.size > MAX_COVER_BYTES) { window.alert("Cover image must be smaller than 5 MB."); return; }
-    if (coverPreview) URL.revokeObjectURL(coverPreview);
-    setCoverPreview(URL.createObjectURL(file));
+    if (file.size > MAX_ORIGINAL_BYTES) { window.alert("Cover image must be smaller than 30 MB."); return; }
+    setCoverBusy(true);
+    try {
+      const compressed = await compressImageFile(file);
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+      setCompressedCover(compressed);
+      setCoverPreview(URL.createObjectURL(compressed));
+    } catch {
+      window.alert("Could not process the image. Please try another JPG, PNG or WebP photo.");
+    } finally {
+      setCoverBusy(false);
+    }
+  };
+
+  const submitLogo = (data: FormData) => {
+    if (compressedLogo) {
+      data.delete("logo");
+      data.append("logo", compressedLogo);
+    }
+    logoAction(data);
+  };
+
+  const submitCover = (data: FormData) => {
+    if (compressedCover) {
+      data.delete("cover");
+      data.append("cover", compressedCover);
+    }
+    coverAction(data);
   };
 
   const d = (v: string | null | undefined) => v ?? "";
@@ -129,14 +167,14 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <form action={logoAction}>
+            <form action={submitLogo}>
               <label htmlFor="logoInput" className="relative flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-[#F7F3ED] px-4 py-4 font-body text-[12px] text-black transition hover:border-primary hover:bg-primary/5 focus-within:ring-2 focus-within:ring-gold focus-within:ring-offset-2">
-                <span className="rounded-lg bg-gold px-4 py-2 font-body text-[11px] font-semibold uppercase tracking-[1px] text-black">Choose file</span>
-                <span className="font-body text-[12px] text-muted">{logoPreview ? "Logo ready to save" : "JPG, PNG or WebP · max 2 MB"}</span>
-                <input id="logoInput" name="logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={onLogo} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" />
+                <span className="rounded-lg bg-gold px-4 py-2 font-body text-[11px] font-semibold uppercase tracking-[1px] text-black">{logoBusy ? "Optimising…" : "Choose file"}</span>
+                <span className="font-body text-[12px] text-muted">{logoBusy ? "Compressing your photo…" : logoPreview ? "Logo ready to save" : "JPG, PNG or WebP"}</span>
+                <input id="logoInput" name="logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={onLogo} disabled={logoBusy} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait" />
               </label>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="submit" disabled={logoPending || !logoPreview} className="min-h-9 px-4 text-[11px]">
+                <Button type="submit" disabled={logoPending || !logoPreview || logoBusy} className="min-h-9 px-4 text-[11px]">
                   {logoPending ? "Saving…" : "Save Logo"}
                 </Button>
               </div>
@@ -169,14 +207,14 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
               <span className="font-body text-[12px] text-muted">No cover image</span>
             </div>
           )}
-          <form action={coverAction} className="mt-3">
+          <form action={submitCover} className="mt-3">
             <label htmlFor="coverInput" className="relative flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-[#F7F3ED] px-4 py-4 font-body text-[12px] text-black transition hover:border-primary hover:bg-primary/5 focus-within:ring-2 focus-within:ring-gold focus-within:ring-offset-2">
-              <span className="rounded-lg bg-gold px-4 py-2 font-body text-[11px] font-semibold uppercase tracking-[1px] text-black">Choose file</span>
-              <span className="font-body text-[12px] text-muted">{coverPreview ? "Cover ready to save" : "JPG, PNG or WebP · max 5 MB"}</span>
-              <input id="coverInput" name="cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={onCover} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" />
+              <span className="rounded-lg bg-gold px-4 py-2 font-body text-[11px] font-semibold uppercase tracking-[1px] text-black">{coverBusy ? "Optimising…" : "Choose file"}</span>
+              <span className="font-body text-[12px] text-muted">{coverBusy ? "Compressing your photo…" : coverPreview ? "Cover ready to save" : "JPG, PNG or WebP"}</span>
+              <input id="coverInput" name="cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={onCover} disabled={coverBusy} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait" />
             </label>
             <div className="mt-3 flex gap-2">
-              <Button type="submit" disabled={coverPending || !coverPreview} className="min-h-9 px-4 text-[11px]">
+              <Button type="submit" disabled={coverPending || !coverPreview || coverBusy} className="min-h-9 px-4 text-[11px]">
                 {coverPending ? "Saving…" : "Save Cover"}
               </Button>
             </div>

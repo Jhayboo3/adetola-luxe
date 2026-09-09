@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import type { ProductFormState } from "@/app/admin/(store)/products/actions";
 import { uploadFileKey } from "@/lib/product-upload";
+import { compressImageFile } from "@/lib/image-compress";
 
 type ProductValue = {
   name: string; slug: string; description: string; price: number; compareAt: number | null;
@@ -16,7 +17,7 @@ type ProductValue = {
 
 const availableColors = ["Black", "White", "Cream", "Brown", "Gold", "Green", "Blue", "Red", "Pink", "Purple", "Orange", "Yellow", "Grey", "Silver", "Multi-colour"];
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_ORIGINAL_BYTES = 30 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export default function ProductForm({ action, product, categories }: {
@@ -31,6 +32,7 @@ export default function ProductForm({ action, product, categories }: {
   });
   const [selectedUploads, setSelectedUploads] = useState<{ file: File; preview: string }[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const [colorSelectable, setColorSelectable] = useState(product?.colorSelectable ?? true);
   const selectedColors = (() => { try { return product ? (JSON.parse(product.colors) as string[]).map((color) => ({ "#005C29": "Green", "#000000": "Black", "#D4AF37": "Gold", "#FFFFFF": "White" }[color] ?? color)) : []; } catch { return []; } })();
   const list = (value?: string) => { try { return value ? (JSON.parse(value) as string[]).join(", ") : ""; } catch { return ""; } };
@@ -49,19 +51,19 @@ export default function ProductForm({ action, product, categories }: {
   };
   const previews = [...selectedUploads.map(({ preview }) => preview), ...existingPreviews];
 
-  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
     if (!files.length) return;
 
     const invalidType = files.find((f) => !ALLOWED_IMAGE_TYPES.includes(f.type));
     if (invalidType) {
-      setImageError(`"${invalidType.name}" is not a supported format — please use JPG, PNG, or WebP images.`);
+      setImageError(`"${invalidType.name}" is not a supported format — please use JPG, PNG, or WebP photos.`);
       return;
     }
-    const tooLarge = files.find((f) => f.size > MAX_IMAGE_BYTES);
+    const tooLarge = files.find((f) => f.size > MAX_ORIGINAL_BYTES);
     if (tooLarge) {
-      setImageError(`"${tooLarge.name}" is too large — each image must be smaller than 5 MB.`);
+      setImageError(`"${tooLarge.name}" is too large — each photo must be smaller than 30 MB.`);
       return;
     }
     if (files.length + selectedUploads.length > 20) {
@@ -73,11 +75,23 @@ export default function ProductForm({ action, product, categories }: {
       return;
     }
     setImageError(null);
-    setSelectedUploads((current) => {
-      const known = new Set(current.map(({ file }) => uploadFileKey(file)));
-      const additions = files.filter((file) => !known.has(uploadFileKey(file))).map((file) => ({ file, preview: URL.createObjectURL(file) }));
-      return [...current, ...additions];
-    });
+    setCompressing(true);
+    try {
+      const additions = await Promise.all(
+        files.map(async (file) => {
+          const compressed = await compressImageFile(file);
+          return { file: compressed, preview: URL.createObjectURL(compressed) };
+        }),
+      );
+      setSelectedUploads((current) => {
+        const known = new Set(current.map(({ file }) => uploadFileKey(file)));
+        return [...current, ...additions.filter(({ file }) => !known.has(uploadFileKey(file)))];
+      });
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "Could not process one of the photos. Please try again.");
+    } finally {
+      setCompressing(false);
+    }
   };
 
   return (
@@ -121,11 +135,11 @@ export default function ProductForm({ action, product, categories }: {
           {previews.length ? previews.map((preview, index) => <div key={`${preview}-${index}`} className="relative aspect-[3/4] overflow-hidden rounded-xl bg-line"><Image src={preview} alt={`Product preview ${index + 1}`} fill sizes="180px" className="object-cover" unoptimized /></div>) : <div className="col-span-2 flex aspect-[3/4] items-center justify-center rounded-xl bg-line font-body text-[11px] text-muted">No images selected</div>}
         </div>
         <div className="flex flex-col gap-2">
-          <span className="font-body text-[12px] font-medium text-muted">Clothing Images (up to 20; JPG, PNG or WebP; max 5 MB each)</span>
+          <span className="font-body text-[12px] font-medium text-muted">Clothing Images (up to 10; JPG, PNG or WebP). Photos are compressed before uploading so they save quickly.</span>
           <label htmlFor="imagePicker" className="relative flex w-full cursor-pointer flex-wrap items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-[#F7F3ED] px-4 py-4 font-body text-[12px] text-black transition hover:border-primary hover:bg-primary/5 focus-within:ring-2 focus-within:ring-gold focus-within:ring-offset-2">
-            <span className="rounded-lg bg-gold px-4 py-2 font-body text-[11px] font-semibold uppercase tracking-[1px] text-black">Choose images</span>
-            <span className="font-body text-[12px] text-muted">{selectedUploads.length ? `${selectedUploads.length} file${selectedUploads.length === 1 ? "" : "s"} selected` : "Select photos from your device"}</span>
-            <input id="imagePicker" type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={handleImageSelect} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" />
+            <span className="rounded-lg bg-gold px-4 py-2 font-body text-[11px] font-semibold uppercase tracking-[1px] text-black">{compressing ? "Optimising…" : "Choose images"}</span>
+            <span className="font-body text-[12px] text-muted">{compressing ? "Compressing your photos, please wait…" : selectedUploads.length ? `${selectedUploads.length} file${selectedUploads.length === 1 ? "" : "s"} selected` : "Select photos from your device"}</span>
+            <input id="imagePicker" type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={handleImageSelect} disabled={compressing} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait" />
           </label>
           {imageError && <p className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-body text-[12px] text-red-700"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] text-white">!</span>{imageError}</p>}
           <p className="font-body text-[11px] text-muted">{selectedUploads.length} new {selectedUploads.length === 1 ? "file" : "files"} selected. You can choose files again to append more before saving.</p>
