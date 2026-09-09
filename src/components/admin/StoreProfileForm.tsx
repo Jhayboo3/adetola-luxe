@@ -130,13 +130,11 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
           </div>
           <div className="min-w-0 flex-1">
             <form action={logoAction}>
-              <input
-                name="logo"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={onLogo}
-                className="w-full cursor-pointer rounded-xl border border-line bg-white p-2 font-body text-[12px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold file:px-4 file:py-2 file:font-body file:text-[11px] file:font-semibold file:uppercase file:tracking-[1px] file:text-black hover:file:bg-primary hover:file:text-white"
-              />
+              <label htmlFor="logoInput" className="relative flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-[#F7F3ED] px-4 py-4 font-body text-[12px] text-black transition hover:border-primary hover:bg-primary/5 focus-within:ring-2 focus-within:ring-gold focus-within:ring-offset-2">
+                <span className="rounded-lg bg-gold px-4 py-2 font-body text-[11px] font-semibold uppercase tracking-[1px] text-black">Choose file</span>
+                <span className="font-body text-[12px] text-muted">{logoPreview ? "Logo ready to save" : "JPG, PNG or WebP · max 2 MB"}</span>
+                <input id="logoInput" name="logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={onLogo} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" />
+              </label>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button type="submit" disabled={logoPending || !logoPreview} className="min-h-9 px-4 text-[11px]">
                   {logoPending ? "Saving…" : "Save Logo"}
@@ -172,13 +170,11 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
             </div>
           )}
           <form action={coverAction} className="mt-3">
-            <input
-              name="cover"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={onCover}
-              className="w-full cursor-pointer rounded-xl border border-line bg-white p-2 font-body text-[12px] text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-gold file:px-4 file:py-2 file:font-body file:text-[11px] file:font-semibold file:uppercase file:tracking-[1px] file:text-black hover:file:bg-primary hover:file:text-white"
-            />
+            <label htmlFor="coverInput" className="relative flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-[#F7F3ED] px-4 py-4 font-body text-[12px] text-black transition hover:border-primary hover:bg-primary/5 focus-within:ring-2 focus-within:ring-gold focus-within:ring-offset-2">
+              <span className="rounded-lg bg-gold px-4 py-2 font-body text-[11px] font-semibold uppercase tracking-[1px] text-black">Choose file</span>
+              <span className="font-body text-[12px] text-muted">{coverPreview ? "Cover ready to save" : "JPG, PNG or WebP · max 5 MB"}</span>
+              <input id="coverInput" name="cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={onCover} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" />
+            </label>
             <div className="mt-3 flex gap-2">
               <Button type="submit" disabled={coverPending || !coverPreview} className="min-h-9 px-4 text-[11px]">
                 {coverPending ? "Saving…" : "Save Cover"}
