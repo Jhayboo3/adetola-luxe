@@ -65,3 +65,11 @@ Investigation (2026-09-29): every PPR route shares one identical mismatch, so th
 ### CI and dependency guard
 
 `.github/workflows/ci.yml` runs on every pull request and on pushes to `main` (verification only — it never deploys): install → `npm test` → `tsc --noEmit` → `lint` → `build` → `verify:deps` → `verify:worker-runtime` → `git diff --check`. `scripts/check-dependency-pins.mjs` (`npm run verify:deps`) asserts `next ~16.3.7` and `@opennextjs/cloudflare 1.20.7` in both `package.json` and the lockfile. `scripts/prepare-local-d1.mjs` (`npm run prepare:local-d1`) provisions a migrated local D1 plus deterministic `runtime-check` fixtures so the runtime gate works on a fresh checkout/CI runner.
+
+## Migration 0019 — order expiry lifecycle (local only, not deployed)
+
+`prisma/migrations/0019_order_expiry_lifecycle.sql` adds nullable `Order.vendorContactOpenedAt`, `Order.acceptedAt`, `Order.rejectionReason`, an `Index("Order"("status","createdAt"))`, and three triggers (`Order_expire_restore_stock`, `Order_expire_scope_guard`, `Order_expired_reopen_guard`). It is **additive and back-compatible** (no historical row or timestamp rewritten) and was applied **only to local D1**. It has **not** been applied to production.
+
+Release order when the gate allows: apply `0019` together with the matching application code (the expiry sweep, `acceptOrder`/`rejectOrder`, `cancelOwnOrder`, the `/api/orders/[id]/contact-opened` route and the updated lifecycle UI). The sweep depends on the `(status, createdAt)` index; the expiry triggers depend on nothing new. As with `0012`, the trigger and its matching code must ship together in a controlled window.
+
+Production compatibility is gated on the authorized production export: run `node scripts/rehearse-production-import.mjs --db <authorized-export.sqlite>` and confirm the historical orders, statuses and inventory are unchanged after `0012`–`0019`. Currently **BLOCKED — AUTHORIZED EXPORT REQUIRED**; nothing was applied to production.

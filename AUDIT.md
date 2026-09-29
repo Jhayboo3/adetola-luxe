@@ -310,3 +310,19 @@ Changed: `src/app/admin/(store)/stores/manage-client.tsx` (suspend bug fix), `sr
 **Owner decisions required before any implementation** (docs/ORDER-LIFECYCLE.md §6): adopt expiry or keep A; window length and start point; handoff tracking; customer cancellation scope; vendor rejection reasons; keep/remove vendor payment reporting; explicit Accept; expired-order visibility. **No lifecycle code or migration is produced until these are answered.**
 
 **Verification:** `npm test` 33/33 (8 new design tests); `tsc`/`lint`/`build`/`verify:deps`/`verify:worker-runtime` pass; `git diff --check` clean; `npm audit` unchanged. No deploy.
+
+## Order lifecycle implementation (2026-09-29)
+
+**Owner decisions implemented** (see `docs/ORDER-LIFECYCLE.md`): 12 h reservation window from `createdAt`; `vendorContactOpenedAt` first-click-only handoff tracking; explicit vendor Accept; customer cancellation before acceptance only; bounded vendor rejection reasons; retained vendor-reported payment status; terminal, visible `expired`; per-child-order expiry.
+
+**Shipped (local only; not deployed, migration not applied to production):**
+- Migration `0019_order_expiry_lifecycle.sql`: nullable `vendorContactOpenedAt`/`acceptedAt`/`rejectionReason`, `Index("Order"("status","createdAt"))`, and expiry restore/scope/reopen triggers (scope guard exempts `OLD='expired'` so repeated sweeps are no-ops). Applied to local D1 only.
+- `src/lib/orders.ts` (`expired`, buyer labels, lifecycle predicates, rejection reasons), `src/lib/order-expiry.ts` (window config, bounded throttled sweep, non-throwing opportunistic runner).
+- `POST /api/orders/[id]/contact-opened` (owner-or-bearer authorized, first-write-only, no status change) + `WhatsAppHandoff` client component; sweep touch points wired into `POST /api/orders` (`ctx.waitUntil`), `/account/orders`, `/admin/orders`.
+- `acceptOrder`/`rejectOrder` vendor actions, customer `cancelOwnOrder` action; vendor order UI (age, handoff time, accepted time, reason, Accept, Reject/Cancel) and customer order UI (buyer labels, cancel-before-acceptance, expiry copy + Order again, tracked handoff).
+
+**Verification:** `npm test` 38/38 (13 new `tests/order-lifecycle.test.mjs` covering the 18 required cases with real SQLite + worker-thread races); `tsc` pass; `lint` pass (1 pre-existing warning); `build` pass; `verify:deps` pass; `verify:worker-runtime` pass (all routes 200, no fatal signatures); `git diff --check` clean; `npm audit` 3 high/3 moderate/0 critical unchanged. Authenticated local E2E: vendor `/admin/orders` renders Accept/Reject/age, customer `/account/orders` renders buyer labels; the contact-opened endpoint sets the timestamp once for the owner, is 403 for a non-owner and 404 for an unknown id, and leaves status unchanged.
+
+**Migration rehearsal:** BLOCKED — AUTHORIZED EXPORT REQUIRED. Migration `0019` is additive but production-defensive rehearsal against the historical orders has not run. **No deploy.**
+
+**Not done by design:** no payment gateway/wallet/payout/ledger/commission; guest cancellation (would require weakening guest security); no custom Cron worker (a future cron can call `sweepExpiredOrders` unchanged).

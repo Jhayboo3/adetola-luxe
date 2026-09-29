@@ -1,6 +1,6 @@
 # Larkvine order lifecycle and abandoned-inventory audit
 
-Status: audit and design, 2026-09-29. **No code, schema or production behaviour is changed by this document.** Larkvine does not process payments; payment and delivery are arranged directly between the customer and the vendor over WhatsApp. This document maps the current lifecycle, quantifies the abandoned-order problem, compares policy options and specifies a safe technical model — but the business policy (and therefore any implementation) requires explicit owner approval first.
+Status: design **approved and implemented locally** on 2026-09-29. The owner approved automatic expiry (12 h from `createdAt`), WhatsApp handoff tracking, explicit vendor acceptance, customer cancellation before acceptance, bounded vendor rejection reasons, retained vendor-reported payment status, visible terminal `expired` orders, and per-child-order expiry. The additive migration `0019` was applied **only to local D1**; it has **not** been applied to production and nothing was deployed. Larkvine does not process payments; payment and delivery are arranged directly between the customer and the vendor over WhatsApp. See "Implementation (approved)" at the end of this document for what shipped.
 
 Source of truth for statuses: `src/lib/orders.ts`, `src/app/api/orders/route.ts`, `src/app/admin/(store)/orders/actions.ts`, `prisma/schema.prisma`, migrations `0004`, `0012`, `0015`, `0016`, `0017`.
 
@@ -253,3 +253,17 @@ Unchanged: `a5cc3fb0-0c4e-4fd1-b12e-97130024fa1e`, migrations `0012`–`0018`, h
 ## 30. Owner decisions needed before implementation
 
 See section 6. In order of dependency: (1) expiry or not; (2) window and start point; (3) handoff tracking yes/no; (4) customer cancellation scope; (5) vendor rejection reasons; (6) keep vendor payment reporting; (7) explicit Accept; (8) expired-order visibility. Until these are answered, **no lifecycle code or migration will be produced**.
+
+## Implementation (approved decisions) — 2026-09-29
+
+Owner decisions locked: **12 h reservation window from `createdAt`** (central config `ORDER_RESERVATION_WINDOW_HOURS` in `src/lib/order-expiry.ts`, env-overridable); **`vendorContactOpenedAt`** first-click-only, server-recorded, never extends expiry and never implies payment; **explicit vendor Accept** (`acceptOrder` → `confirmed` + `acceptedAt`); **customer cancellation only before acceptance** (`sent_to_whatsapp`/`pending`, owner-scoped, atomic, idempotent); **bounded vendor rejection reasons**; **vendor-reported payment retained** (no inventory effect); **`expired` terminal and visible**; **per-child-order expiry**.
+
+Implemented:
+- `prisma/migrations/0019_order_expiry_lifecycle.sql` — nullable `vendorContactOpenedAt`, `acceptedAt`, `rejectionReason`; `Index("Order"("status","createdAt"))`; `Order_expire_restore_stock`, `Order_expire_scope_guard` (exempts `OLD='expired'` for idempotency), `Order_expired_reopen_guard`. Additive; applied to local D1 only.
+- `src/lib/orders.ts` — `expired` status, buyer-facing labels, `EXPIRABLE/ACCEPTABLE/CUSTOMER_CANCELLABLE/VENDOR_CANCELLABLE` predicates, bounded `REJECTION_REASONS` with safe customer text.
+- `src/lib/order-expiry.ts` — `ORDER_RESERVATION_WINDOW_HOURS = 12`, `expiryCutoff`, bounded + throttled `sweepExpiredOrders` (per-order compare-and-set) and non-throwing `runOpportunisticExpirySweep`. Sweep touch points: `POST /api/orders` (via `ctx.waitUntil`), `/account/orders`, and the vendor `/admin/orders` page.
+- `POST /api/orders/[id]/contact-opened` — owner-session or checkout-bearer authorized; sets `vendorContactOpenedAt` only if `NULL`; never changes status; `src/components/order/WhatsAppHandoff.tsx` records on click (keepalive) and then opens the server-rendered wa.me URL.
+- `acceptOrder` / `rejectOrder` vendor server actions (store-scoped compare-and-set; rejection requires a bounded reason); customer `cancelOwnOrder` server action + `CancelOrderButton` (owner-scoped, eligible states only). Guest cancellation is intentionally unsupported — guest security was not weakened.
+- Vendor `/admin/orders`: order age, status, WhatsApp-handoff timestamp, accepted time, rejection reason, prominent **Accept order** and **Reject / Cancel** (reason select); `cancelled`/`expired` are read-only; payment select retained and labelled vendor-reported. Customer `/account/orders`: buyer labels, per-order **Cancel order** before acceptance, expiry explanation + **Order again**, WhatsApp handoff tracking.
+
+Migration rehearsal: **BLOCKED — AUTHORIZED EXPORT REQUIRED.** `0019` is additive (nullable columns, one index, triggers) and local production-like rehearsal on synthetic data is covered by `tests/order-lifecycle.test.mjs`, but no authorized production export is available, so production compatibility of the historical 10 orders is unverified. Do not apply to production until the rehearsal gate clears.

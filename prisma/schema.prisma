@@ -191,6 +191,9 @@ model Order {
   status        String      @default("pending")
   paymentMethod String      @default("manual")
   paymentStatus String      @default("pending")
+  vendorContactOpenedAt DateTime?
+  acceptedAt    DateTime?
+  rejectionReason String?
   notes         String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -198,6 +201,7 @@ model Order {
   @@index([userId])
   @@index([checkoutId])
   @@index([storeId])
+  @@index([status, createdAt])
   @@unique([storeId, orderCode])
   @@unique([storeId, checkoutToken])
 }

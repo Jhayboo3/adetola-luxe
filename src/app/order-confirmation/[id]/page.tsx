@@ -5,6 +5,8 @@ import { formatPrice } from "@/lib/utils";
 import { storeWhatsappFromRecord, vendorHasContact } from "@/lib/store";
 import { addKobo, koboToNaira } from "@/lib/money";
 import { orderReference, whatsappOrderUrl } from "@/lib/whatsapp";
+import { buyerOrderStatusLabel } from "@/lib/orders";
+import WhatsAppHandoff from "@/components/order/WhatsAppHandoff";
 import { auth } from "@/auth";
 import { sha256 } from "@/lib/checkout-idempotency";
 
@@ -36,6 +38,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: {
   const [{ id }, { ids, token }] = await Promise.all([params, searchParams]);
   let orders: Awaited<ReturnType<typeof legacyOrders>>;
   let checkoutReference: string | null = null;
+  let guestToken: string | null = null;
   if (id === "ok") {
     orders = await legacyOrders(ids ?? "");
   } else {
@@ -51,6 +54,7 @@ export default async function OrderConfirmationPage({ params, searchParams }: {
     if (!checkout || !checkout.orders.length) notFound();
     orders = checkout.orders;
     checkoutReference = checkout.id;
+    guestToken = owned ? null : token ?? null;
   }
   const total = orders.every((order) => order.totalMinor != null)
     ? koboToNaira(orders.reduce((sum, order) => addKobo(sum, Number(order.totalMinor)), 0))
@@ -84,17 +88,17 @@ export default async function OrderConfirmationPage({ params, searchParams }: {
                   <h3 className="font-body text-[11px] font-medium uppercase tracking-[2px] text-black">{order.store.name}</h3>
                   <span className="font-body text-[11px] text-muted">{orderReference(order.orderCode)}</span>
                 </div>
-                <p className="mt-2 font-body text-[12px] text-muted">Order created · Payment and delivery arranged with the seller</p>
+                <p className="mt-2 font-body text-[12px] text-muted">Order created · {buyerOrderStatusLabel(order.status)} · Payment and delivery arranged with the seller</p>
                 <div className="mt-4 space-y-3 font-body text-[13px] text-muted">{order.items.map((item) => <div key={item.id} className="flex justify-between gap-4"><span>{item.product.name} ({item.size}, {item.color}) × {item.quantity}</span><span>{formatPrice(item.priceMinor == null ? item.price * item.quantity : koboToNaira(Number(item.priceMinor) * item.quantity))}</span></div>)}<div className="flex justify-between border-t border-line pt-3 font-medium text-black"><span>Total</span><span>{formatPrice(order.totalMinor == null ? order.total : koboToNaira(Number(order.totalMinor)))}</span></div></div>
                 <p className="mt-4 font-body text-[12px] text-muted">Delivery: {order.address}, {order.city}, {order.state}</p>
-                {href ? <a
+                {href ? <WhatsAppHandoff
                   href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  orderId={order.id}
+                  token={guestToken}
                   className="cta-primary mt-5 w-full"
                 >
                   Continue with {order.store.name} on WhatsApp
-                </a> : <p className="mt-5 font-body text-[12px] text-red-700">This seller has no WhatsApp contact on file. <Link href="/contact" className="underline">Contact Larkvine support</Link> with your order reference {orderReference(order.orderCode)}.</p>}
+                </WhatsAppHandoff> : <p className="mt-5 font-body text-[12px] text-red-700">This seller has no WhatsApp contact on file. <Link href="/contact" className="underline">Contact Larkvine support</Link> with your order reference {orderReference(order.orderCode)}.</p>}
               </div>
             );
           })}

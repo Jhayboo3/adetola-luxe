@@ -6,6 +6,7 @@ import { isGarmentSize } from "@/lib/measurements";
 import { storeWhatsappFromRecord, vendorHasContact } from "@/lib/store";
 import { ORDER_STATUS_SENT_TO_WHATSAPP } from "@/lib/orders";
 import { orderWhatsappMessage, whatsappOrderUrl } from "@/lib/whatsapp";
+import { sweepExpiredOrders } from "@/lib/order-expiry";
 import { canonicalCheckoutRequest, sha256, type CheckoutRequestCustomer, type CheckoutRequestItem } from "@/lib/checkout-idempotency";
 import { addKobo, koboToNaira, multiplyKobo, nairaToKobo } from "@/lib/money";
 
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
       groups.get(key)!.push(item);
     }
 
-    const { env } = await getCloudflareContext({ async: true });
+    const { env, ctx } = await getCloudflareContext({ async: true });
     const now = new Date().toISOString();
     const gender = customer.gender === "Male" || customer.gender === "Female" ? customer.gender : null;
     const address = `${customer.address}, ${customer.city}, ${customer.state}${customer.zip ? `, ${customer.zip}` : ""}`;
@@ -162,6 +163,9 @@ export async function POST(request: Request) {
 
     const results = createdMeta.sort((a, b) => a.storeId < b.storeId ? -1 : a.storeId > b.storeId ? 1 : 0)
       .map(({ order }) => whatsappResult(order.store, order.orderCode, order.id, order.message));
+
+    // Opportunistic release of stale unaccepted orders; never blocks the response.
+    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(sweepExpiredOrders({ env }).catch(() => 0));
 
     return Response.json({ checkoutId, whatsapps: results });
   } catch (error) {

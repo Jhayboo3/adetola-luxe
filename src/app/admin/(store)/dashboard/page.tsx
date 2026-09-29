@@ -8,7 +8,7 @@ import { orderStatusLabel, ORDER_STATUS_CANCELLED } from "@/lib/orders";
 export default async function AdminDashboardPage() {
   const store = await requireStore();
   const [reportedPaid, orderCount, productCount, lowStock, recent] = await Promise.all([
-    prisma.order.aggregate({ where: { storeId: store.id, paymentStatus: "paid", status: { not: ORDER_STATUS_CANCELLED } }, _sum: { total: true } }),
+    prisma.order.aggregate({ where: { storeId: store.id, paymentStatus: "paid", status: { notIn: [ORDER_STATUS_CANCELLED, "expired"] } }, _sum: { total: true } }),
     prisma.order.count({ where: { storeId: store.id } }), prisma.product.count({ where: { storeId: store.id } }), prisma.product.count({ where: { storeId: store.id, stock: { lte: 3 }, published: true } }),
     prisma.order.findMany({ where: { storeId: store.id }, take: 5, orderBy: { createdAt: "desc" } }),
   ]);
