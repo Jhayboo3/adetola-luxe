@@ -30,3 +30,28 @@ Status: preparation only. No production release or production data verification 
 ## Financial and inventory verification
 
 For each smoke checkout, verify one Checkout, one Order per Store, item Store/Product tenancy, a single stock decrement, NGN minor-unit item and order sums, and replay without a second decrement. Verify one cancellation transition restores exactly the cancelled quantity; a repeated request and a shipped/delivered cancellation restore zero. Reconcile aggregate inventory before/after the release window. Payment remains WhatsApp/manual and vendor-reported; no provider settlement, commission, balance or payout is verified by this release.
+
+## Runtime compatibility and predeploy gate (2026-09-29)
+
+**Known-good combination (do not change casually):**
+
+| Package | Pinned | Notes |
+| --- | --- | --- |
+| `next` | `~16.3.7` | 16.3.x patches only. `16.3.x` with `cacheComponents` renders correctly under workerd. |
+| `@opennextjs/cloudflare` | `1.20.7` | Exact pin. Required for Next 16.3 on the Workers runtime. |
+
+**Known-bad combination:** `next@16.3.x` + `@opennextjs/cloudflare@1.20.2`. With 1.20.2 the worker's Next cache layer (`CacheSignal` / `createAtomicTimerGroup`) hangs on workerd and every page request fails with a cross-request `IoContext` error ("Cannot perform I/O on behalf of a different request") or a "code had hung and would never generate a response" cancellation. This caused deployment `a58fff9e` to be rolled back on 2026-09-29. Upgrading to 1.20.7 resolved it (`a5cc3fb0`). A residual, non-fatal warning remains: `Next.js cannot guarantee that Cache Components will run as expected due to the current runtime's implementation of setTimeout()`, plus a PPR resume-tree mismatch that makes React fall back to client rendering (React error #419) on some pages; pages remain fully functional.
+
+**Mandatory predeploy runtime check.** Before every `opennextjs-cloudflare deploy`, run:
+
+```
+npm test
+npx tsc --noEmit
+npm run lint
+npm run build
+npm run verify:worker-runtime   # builds, runs the worker under workerd, requests /, /shop, /stores, /account/orders; fails on 500, hang, or CacheSignal/IoContext signatures
+```
+
+`npm run verify:worker-runtime` requires a migrated local D1 (`.wrangler` state). It never deploys and never touches production. Raw `wrangler dev` is deliberately not used — it runs a developer-mode path that can hang independently of production; `opennextjs-cloudflare preview` mirrors the deployed invocation.
+
+**Release sequence:** tests → TypeScript → lint → build → `verify:worker-runtime` → deploy. A passing build alone is not sufficient; the worker must render the critical routes under workerd.

@@ -40,3 +40,11 @@ npx wrangler r2 object put "adetola-luxe-product-images/love/girls-like-you.mp3"
 
 Set `NEXT_PUBLIC_LOVE_SONG_URL` to an absolute URL to bypass R2 and stream a
 hosted file instead. The track is copyrighted — keep it out of source control.
+
+## Runtime compatibility (important)
+
+The known-good production combination is **Next.js `16.3.x` + `@opennextjs/cloudflare` `1.20.7`**
+(both pinned in `package.json`). Next 16.3 with `@opennextjs/cloudflare` 1.20.2 hangs on the
+Workers runtime (cross-request `IoContext` / `CacheSignal`) and must not be used. Before every
+deploy run the mandatory gate `npm run verify:worker-runtime` (builds the worker, runs it under
+workerd, checks critical routes). Full detail: `docs/FOUNDATION-DEPLOYMENT.md`.
