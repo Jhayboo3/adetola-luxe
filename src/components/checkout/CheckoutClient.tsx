@@ -7,10 +7,11 @@ import Button from "@/components/ui/Button";
 import { useCart } from "@/store/cart";
 import { formatPrice } from "@/lib/utils";
 import { GARMENT_SIZES } from "@/lib/measurements";
+import { checkoutAttemptToken, clearCheckoutAttempt } from "@/lib/checkout-attempt";
 
 type Profile = { name: string; email: string; phone: string; whatsapp: string; gender: string; address: string; city: string; state: string; zip: string; deliveryInfo: string };
 
-export default function CheckoutClient({ profile }: { profile: Profile }) {
+export default function CheckoutClient({ profile, signedIn }: { profile: Profile; signedIn: boolean }) {
   const router = useRouter();
   const { items, getTotal, clearCart } = useCart();
   const [submitted, setSubmitted] = useState(false);
@@ -34,28 +35,44 @@ export default function CheckoutClient({ profile }: { profile: Profile }) {
       size,
     };
     try {
-      const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkoutToken: checkoutToken.current, items: items.map((item) => ({ productId: item.productId, quantity: item.quantity, size: item.size, color: item.color })), customer }) });
-      let data: { whatsapps?: { whatsappUrl?: string; id?: string; orderCode?: string }[]; error?: string } | null = null;
+      const requestItems = items.map((item) => ({ productId: item.productId, quantity: item.quantity, size: item.size, color: item.color }));
+      const persistedToken = await checkoutAttemptToken(sessionStorage, { items: requestItems, customer }, checkoutToken.current);
+      if (!persistedToken) {
+        setError("Your cart or delivery details changed after a checkout attempt. Check whether your previous order was placed before starting a new checkout.");
+        setSubmitted(false);
+        return;
+      }
+      checkoutToken.current = persistedToken;
+      const response = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkoutToken: checkoutToken.current, items: requestItems, customer }) });
+      let data: { checkoutId?: string; whatsapps?: { whatsappUrl?: string; id?: string; orderCode?: string }[]; error?: string } | null = null;
       try { data = await response.json(); } catch { data = null; }
       if (!response.ok || !data || !Array.isArray(data.whatsapps)) {
         setError(data?.error || "Could not place your order. Please try again.");
         setSubmitted(false);
         return;
       }
-      const whatsapps = data.whatsapps;
-      for (const entry of whatsapps) { if (entry.whatsappUrl) window.open(entry.whatsappUrl, "_blank", "noopener,noreferrer"); }
-      const ids = whatsapps.map((entry) => entry.id || entry.orderCode || "").filter(Boolean).join(",");
-      clearCart(); router.push(ids ? `/order-confirmation/ok?ids=${ids}` : "/");
+      const ids = data.whatsapps.map((entry) => entry.id || entry.orderCode || "").filter(Boolean).join(",");
+      clearCart();
+      if (data.checkoutId) {
+        router.push(`/order-confirmation/${data.checkoutId}${signedIn ? "" : `?token=${checkoutToken.current}`}`);
+      } else {
+        router.push(ids ? `/order-confirmation/ok?ids=${ids}` : "/");
+      }
     } catch {
       setError("Could not place your order. Please try again.");
       setSubmitted(false);
     }
   };
 
-  if (!items.length && !submitted) return <div className="py-32 text-center"><h1 className="font-heading text-[24px]">Your cart is empty</h1><Link href="/shop" className="mt-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-primary">Browse the Archive</Link></div>;
+  if (!items.length && !submitted) return <div className="py-32 text-center"><h1 className="font-heading text-[24px]">Your cart is empty</h1><Link href="/shop" className="mt-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-primary">Browse marketplace</Link></div>;
   const total = getTotal();
+  const groups = new Map<string, typeof items>();
+  for (const item of items) {
+    const key = item.storeSlug || item.storeName || "seller";
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
   return <div className="py-10 md:py-16"><div className="mx-auto max-w-[1100px] px-6 sm:px-8"><div className="grid gap-12 md:grid-cols-[1fr_380px]">
-    <section><div className="h-[2px] w-12 bg-gold" /><h1 className="mt-4 font-heading text-[26px]">Checkout</h1><p className="mt-2 font-body text-[13px] text-muted">Enter your contact and delivery details, then choose your garment size. You don&apos;t need an account.</p>
+    <section><div className="h-[2px] w-12 bg-gold" /><h1 className="mt-4 font-heading text-[26px]">Checkout</h1><p className="mt-2 font-body text-[13px] text-muted">Enter your contact and delivery details. Each seller handles its own order and confirms any delivery charge before payment. You don&apos;t need an account.</p>
       <form ref={formRef} className="mt-8 space-y-10">
         <section className="rounded-2xl border border-line p-6">
           <h2 className="font-body text-[11px] font-semibold uppercase tracking-[2px]">Contact Information</h2>
@@ -83,9 +100,10 @@ export default function CheckoutClient({ profile }: { profile: Profile }) {
           {!size && <p className="mt-3 font-body text-[11px] text-red-600">Please select your garment size.</p>}
         </section>
       </form>
-      {error && <div className="mt-6 border border-red-200 bg-red-50 p-4 font-body text-[13px] text-red-700"><p>{error}</p>{error.toLowerCase().includes("size") ? <p className="mt-2 text-[11px]">Choose a garment size from L, M, XL, XXL, XXXL.</p> : null}</div>}
-      <div className="mt-8"><Button type="button" fullWidth disabled={submitted || !size} onClick={handleSubmit}>{submitted ? "Preparing WhatsApp..." : "Order via WhatsApp"}</Button><p className="mt-3 text-center font-body text-[10px] uppercase tracking-[2px] text-muted">Stock is checked securely when your order is saved</p></div>
+      {error && <div role="alert" className="mt-6 border border-red-200 bg-red-50 p-4 font-body text-[13px] text-red-700"><p>{error}</p>{error.toLowerCase().includes("size") ? <p className="mt-2 text-[11px]">Choose a garment size from L, M, XL, XXL, XXXL.</p> : null}</div>}
+      {error.includes("changed after a checkout attempt") && <button type="button" onClick={() => { clearCheckoutAttempt(sessionStorage); checkoutToken.current = crypto.randomUUID(); setError(""); }} className="mt-3 font-body text-[12px] underline">Start a new checkout attempt</button>}
+      <div className="mt-8"><Button type="button" fullWidth disabled={submitted || !size} onClick={handleSubmit}>{submitted ? "Saving your order..." : "Place order"}</Button><p className="mt-3 text-center font-body text-[11px] text-muted">Payment is arranged directly with each seller through WhatsApp after your order is saved. No payment is confirmed at this step.</p></div>
     </section>
-    <aside className="md:sticky md:top-28 md:self-start"><div className="border border-line p-6 sm:p-8"><h2 className="font-body text-[11px] font-semibold uppercase tracking-[2px]">Order Summary</h2><div className="mt-6 space-y-4">{items.map((item) => <div key={item.id} className="flex gap-3"><div className="min-w-0 flex-1"><p className="font-heading text-[13px]">{item.name}</p><p className="font-body text-[10px] text-muted">{item.size} · {item.color} × {item.quantity}</p></div><p className="font-body text-[12px]">{formatPrice(item.price * item.quantity)}</p></div>)}</div><div className="mt-6 flex justify-between border-t border-line pt-4 font-heading"><span>Total</span><span>{formatPrice(total)}</span></div></div></aside>
+    <aside className="md:sticky md:top-28 md:self-start"><div className="border border-line p-6 sm:p-8"><h2 className="font-body text-[11px] font-semibold uppercase tracking-[2px]">Order Summary</h2><div className="mt-6 space-y-5">{[...groups.entries()].map(([key, storeItems]) => <section key={key}><h3 className="mb-2 font-body text-[12px] font-semibold text-primary">{storeItems[0].storeName || "Seller"}</h3><div className="space-y-3">{storeItems.map((item) => <div key={item.id} className="flex gap-3"><div className="min-w-0 flex-1"><p className="font-heading text-[13px]">{item.name}</p><p className="font-body text-[10px] text-muted">{item.size} · {item.color} × {item.quantity}</p></div><p className="font-body text-[12px]">{formatPrice(item.price * item.quantity)}</p></div>)}</div></section>)}</div><div className="mt-6 flex justify-between border-t border-line pt-4 font-heading"><span>Estimated items subtotal</span><span>{formatPrice(total)}</span></div><p className="mt-2 font-body text-[11px] text-muted">Final item prices and stock are checked when the order is saved. Sellers confirm any delivery charge before payment.</p></div></aside>
   </div></div></div>;
 }

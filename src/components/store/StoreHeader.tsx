@@ -1,5 +1,6 @@
 import Image from "next/image";
 import VerifiedBadge from "@/components/ui/VerifiedBadge";
+import { normalizeWhatsappNumber } from "@/lib/whatsapp";
 
 interface StoreHeaderProps {
   name: string;
@@ -18,12 +19,6 @@ interface StoreHeaderProps {
   deliveryAvailable?: boolean;
 }
 
-function normalizeWhatsapp(w: string | null | undefined): string | null {
-  const digits = (w ?? "").replace(/\D/g, "");
-  if (!digits) return null;
-  return digits.startsWith("0") ? digits.slice(0, 0) + "234" + digits.slice(1) : digits;
-}
-
 function truncated(value: string | null | undefined, chars: number): string {
   const v = value?.trim() ?? "";
   if (!v) return "";
@@ -35,7 +30,7 @@ function truncated(value: string | null | undefined, chars: number): string {
 // when the seller actually provided them.
 export default function StoreHeader(props: StoreHeaderProps) {
   const location = [props.city, props.state, props.country].filter(Boolean).join(", ");
-  const waLink = normalizeWhatsapp(props.whatsapp);
+  const waLink = normalizeWhatsappNumber(props.whatsapp);
 
   return (
     <div className="border-b border-line bg-[#FBF8F3]">

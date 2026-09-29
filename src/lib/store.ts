@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
+import { normalizeWhatsappNumber } from "@/lib/whatsapp";
 
 // A store is publicly live only once an admin approves it. Pending and rejected
 // applications are hidden from the marketplace and their owners cannot manage
@@ -82,10 +83,21 @@ type WhatsAppSource = {
   owner?: { whatsapp?: string | null; phone?: string | null } | null;
 };
 
+// True only when the store itself (or its owner) supplied a usable contact
+// number. Used so order routing never presents the platform fallback as if it
+// were the seller's number.
+export function vendorHasContact(store: WhatsAppSource | null | undefined): boolean {
+  const raw = store?.whatsapp || store?.phone || store?.owner?.whatsapp || store?.owner?.phone;
+  return normalizeWhatsappNumber(raw) !== null;
+}
+
 // Resolve the WhatsApp number used to notify a store about new orders.
 // Priority: the store's own `whatsapp` field, then its `phone`, then the store
-// owner's WhatsApp/phone, then the platform default. Digits only, no "+".
-// Pure helper so callers with the store already loaded don't need a re-query.
+// owner's WhatsApp/phone, then the platform default. Numbers are normalized to
+// digits; a local leading 0 is converted to the 234 country code. The platform
+// default is only used as a routing safety net when no seller contact exists —
+// callers should prefer `vendorHasContact()` before implying the seller is the
+// recipient.
 export function storeWhatsappFromRecord(store: WhatsAppSource | null | undefined): string {
   const raw =
     store?.whatsapp ||
@@ -94,7 +106,7 @@ export function storeWhatsappFromRecord(store: WhatsAppSource | null | undefined
     store?.owner?.phone ||
     process.env.WHATSAPP_ORDER_NUMBER ||
     "2347011033320";
-  return raw.replace(/\D/g, "");
+  return normalizeWhatsappNumber(raw) ?? "2347011033320";
 }
 
 export async function storeWhatsapp(storeId: string): Promise<string> {

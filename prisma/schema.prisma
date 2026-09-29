@@ -30,7 +30,22 @@ model User {
   updatedAt DateTime @updatedAt
   passwordResetTokens PasswordResetToken[]
   orders Order[]
+  checkouts Checkout[]
   stores Store[]
+}
+
+model Checkout {
+  id          String   @id @default(cuid())
+  tokenHash   String   @unique
+  requestHash String
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email       String
+  currency    String   @default("NGN")
+  createdAt   DateTime @default(now())
+  orders      Order[]
+
+  @@index([userId, createdAt])
 }
 
 model Store {
@@ -114,7 +129,9 @@ model Product {
   slug       String
   description String
   price      Float
+  priceMinor BigInt?
   compareAt  Float?
+  compareAtMinor BigInt?
   images     String   @default("[]")
   sizes      String   @default("[]")
   colors     String   @default("[]")
@@ -132,10 +149,14 @@ model Product {
 
   @@unique([storeId, slug])
   @@index([storeId, categoryId])
+  @@index([published, createdAt(sort: Desc), id(sort: Desc)], map: "Product_catalog_newest_idx")
+  @@index([published, price, id(sort: Desc)], map: "Product_catalog_price_idx")
 }
 
 model Order {
   id            String      @id @default(cuid())
+  checkoutId    String?
+  checkout      Checkout?   @relation(fields: [checkoutId], references: [id], onDelete: Restrict)
   storeId       String
   store         Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orderCode     String?
@@ -159,9 +180,14 @@ model Order {
   size          String?
   items         OrderItem[]
   subtotal      Float
+  currency      String?
+  subtotalMinor BigInt?
   shipping      Float       @default(0)
+  shippingMinor BigInt?
   discount      Float?
+  discountMinor BigInt?
   total         Float
+  totalMinor    BigInt?
   status        String      @default("pending")
   paymentMethod String      @default("manual")
   paymentStatus String      @default("pending")
@@ -170,6 +196,7 @@ model Order {
   updatedAt     DateTime    @updatedAt
 
   @@index([userId])
+  @@index([checkoutId])
   @@index([storeId])
   @@unique([storeId, orderCode])
   @@unique([storeId, checkoutToken])
@@ -187,6 +214,7 @@ model OrderItem {
   size      String
   color     String  @default("Default")
   price     Float
+  priceMinor BigInt?
 
   @@index([storeId])
 }

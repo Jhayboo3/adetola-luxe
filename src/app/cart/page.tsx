@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCart } from "@/store/cart";
 import { useToast } from "@/store/toast";
 import { formatPrice } from "@/lib/utils";
-import Button from "@/components/ui/Button";
 import Image from "next/image";
 
 export default function CartPage() {
@@ -31,13 +30,13 @@ export default function CartPage() {
             Your cart is empty
           </h1>
           <p className="mt-3 font-body text-[13px] text-muted">
-            Begin collecting pieces that speak to you.
+            Explore products from independent stores.
           </p>
           <Link
             href="/shop"
             className="cta-primary mt-8"
           >
-            Browse archive
+            Browse marketplace
           </Link>
         </div>
       </div>
@@ -45,6 +44,11 @@ export default function CartPage() {
   }
 
   const total = getTotal();
+  const groups = new Map<string, typeof items>();
+  for (const item of items) {
+    const key = item.storeSlug || item.storeName || "seller";
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
 
   return (
     <div className="py-16 md:py-20">
@@ -53,13 +57,16 @@ export default function CartPage() {
         <h1 className="font-heading text-[28px] font-medium text-black">
           Cart
         </h1>
+        <p className="mt-2 font-body text-[13px] text-muted">Products are grouped by seller. Each seller handles its part of your order and confirms delivery before payment.</p>
 
         <div className="mt-12 grid grid-cols-1 gap-16 md:grid-cols-[1fr_380px]">
           <div className="flex flex-col gap-8">
-            {items.map((item) => (
+            {[...groups.entries()].map(([storeKey, storeItems]) => <section key={storeKey} aria-label={`Products from ${storeItems[0].storeName || "seller"}`} className="border border-line p-4 sm:p-6">
+              <h2 className="mb-5 font-heading text-[17px]">{storeItems[0].storeName || "Seller"}</h2>
+              <div className="space-y-6">{storeItems.map((item) => (
               <div
                 key={item.id}
-                className="flex gap-6 border-b border-line pb-8"
+                className="flex gap-4 border-b border-line pb-6 last:border-b-0 last:pb-0 sm:gap-6"
               >
                 <div className="relative aspect-[3/4] w-20 flex-shrink-0 overflow-hidden rounded-xl bg-line md:w-28">
                   {item.image ? <Image src={item.image} alt={item.name} fill sizes="112px" className="object-cover" unoptimized /> : <div className="flex h-full w-full items-center justify-center bg-[#E5DDD3]"><span className="font-body text-[9px] text-muted">Image</span></div>}
@@ -75,11 +82,7 @@ export default function CartPage() {
                         {formatPrice(item.price * item.quantity)}
                       </p>
                     </div>
-                    {item.storeName && (
-                      <Link href={`/${item.storeSlug}`} className="mt-1 inline-block font-body text-[11px] font-medium text-primary no-underline">
-                        {item.storeName}
-                      </Link>
-                    )}
+                    {item.storeName && item.storeSlug && <Link href={`/${item.storeSlug}`} className="mt-1 inline-block font-body text-[11px] font-medium text-primary no-underline">Visit seller</Link>}
                     <p className="mt-1 font-body text-[11px] text-muted">
                       Size: {item.size} · Color: {item.color}
                     </p>
@@ -90,7 +93,7 @@ export default function CartPage() {
                       <button
                         onClick={() => handleQuantity(item.id, item.quantity - 1)}
                         aria-label="Decrease quantity"
-                        className="flex h-8 w-8 items-center justify-center border border-line font-body text-[13px] transition-colors hover:border-black active:scale-95"
+                        className="flex h-11 w-11 items-center justify-center border border-line font-body text-[13px] transition-colors hover:border-black active:scale-95"
                       >
                         -
                       </button>
@@ -100,21 +103,22 @@ export default function CartPage() {
                       <button
                         onClick={() => handleQuantity(item.id, item.quantity + 1)}
                         aria-label="Increase quantity"
-                        className="flex h-8 w-8 items-center justify-center border border-line font-body text-[13px] transition-colors hover:border-black active:scale-95"
+                        className="flex h-11 w-11 items-center justify-center border border-line font-body text-[13px] transition-colors hover:border-black active:scale-95"
                       >
                         +
                       </button>
                     </div>
-                    <button
+                    <button type="button"
                       onClick={() => handleRemove(item)}
-                      className="font-body text-[11px] uppercase tracking-[2px] text-muted transition-colors hover:text-primary"
+                      className="min-h-11 font-body text-[11px] uppercase tracking-[1px] text-muted transition-colors hover:text-primary"
                     >
                       Remove
                     </button>
                   </div>
                 </div>
               </div>
-            ))}
+            ))}</div>
+            </section>)}
           </div>
 
           <div className="md:sticky md:top-8 md:self-start">
@@ -131,20 +135,19 @@ export default function CartPage() {
                 <div className="flex justify-between font-body text-[13px]">
                   <span className="text-muted">Shipping</span>
                   <span className="text-primary">
-                    {total >= 100000 ? "Complimentary" : "Calculated at checkout"}
+                    Arranged with each store
                   </span>
                 </div>
                 <div className="border-t border-line pt-4">
                   <div className="flex justify-between font-heading text-[16px] font-medium">
-                    <span>Total</span>
+                    <span>Items subtotal</span>
                     <span>{formatPrice(total)}</span>
                   </div>
+                  <p className="mt-2 font-body text-[11px] text-muted">Delivery charges, if any, are agreed with each store before payment.</p>
                 </div>
               </div>
 
-              <Link href="/checkout" className="mt-8 block">
-                <Button fullWidth>Checkout</Button>
-              </Link>
+              <Link href="/checkout" className="cta-primary mt-8 w-full">Continue to checkout</Link>
 
               <Link
                 href="/shop"

@@ -1,0 +1,1 @@
+export default function Loading() { return <div role="status" aria-live="polite" className="mx-auto max-w-[1000px] px-6 py-12 sm:px-8"><h1 className="font-heading text-[26px]">My orders</h1><p className="mt-3 font-body text-[13px] text-muted">Loading your orders…</p></div>; }

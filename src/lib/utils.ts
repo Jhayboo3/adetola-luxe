@@ -4,7 +4,7 @@ export function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 export function formatPrice(price: number): string {
-  return `₦${price.toLocaleString("en-US")}`;
+  return `₦${price.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(price) ? 0 : 2, maximumFractionDigits: 2 })}`;
 }
 
 export function slugify(text: string): string {

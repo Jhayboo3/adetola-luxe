@@ -31,7 +31,7 @@ const sections = [
           <li>Account details such as your name, email address, and password.</li>
           <li>Profile information such as shipping address, phone number, and WhatsApp contact.</li>
           <li>Store and product information if you sell on Larkvine.</li>
-          <li>Order details, payment information, and communication content.</li>
+          <li>Order details, delivery information, and communication content.</li>
         </ul>
         <p>
           We also automatically collect certain technical information, such as your
@@ -49,7 +49,7 @@ const sections = [
         <p>We use your information to:</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>Provide, operate, and maintain the Marketplace.</li>
-          <li>Process transactions and communicate with you about your orders.</li>
+          <li>Record and route your orders and communicate with you about them.</li>
           <li>Facilitate communication between Buyers and Sellers.</li>
           <li>Resolve disputes and respond to customer service enquiries.</li>
           <li>Improve our services and protect against fraud and abuse.</li>
@@ -68,7 +68,7 @@ const sections = [
         </p>
         <ul className="list-disc space-y-1 pl-5">
           <li>With Sellers to the extent needed to fulfil orders you place.</li>
-          <li>With service providers who help us operate (e.g. hosting, payment, and delivery).</li>
+          <li>With service providers who help us operate (e.g. hosting, communications, and delivery).</li>
           <li>Where required by law or to protect the rights and safety of our users.</li>
         </ul>
       </>

@@ -57,9 +57,11 @@ const sections = [
       <>
         <p>
           Orders placed through the Marketplace are fulfilled by the Seller of the
-          storefront you purchase from. Payment is processed through the payment
-          channels indicated at checkout. By placing an order you authorise the
-          charge associated with your purchase.
+          storefront you purchase from. Larkvine does not process customer payments
+          and does not hold funds. When you place an order, Larkvine records it and
+          connects you with the Seller on WhatsApp; you arrange payment, delivery
+          charges and timelines directly with that Seller. No payment is collected,
+          verified or guaranteed by Larkvine.
         </p>
         <p>
           Sellers are expected to fulfil orders in a timely manner and to

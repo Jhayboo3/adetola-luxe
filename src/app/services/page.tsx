@@ -86,8 +86,9 @@ const sections = [
         </p>
         <p>
           We will review your case, liaise with the vendor, and work toward a fair
-          outcome. If a vendor is unable to fulfil an order, we will do our best to
-          arrange a resolution or refund.
+          outcome. If a vendor is unable to fulfil an order, we will help you reach
+          a resolution with them. Any refund is arranged and issued directly by the
+          seller — Larkvine does not process payments or refunds.
         </p>
       </>
     ),
@@ -113,10 +114,11 @@ const sections = [
     body: (
       <>
         <p>
-          Browsing and shopping on Larkvine is free for customers. Vendor fee
-          structures, where applicable, are communicated to vendors as part of the
-          onboarding process. Any platform fees will be disclosed clearly and are
-          subject to change with notice.
+          Browsing and shopping on Larkvine is free for customers. Larkvine does
+          not process or hold customer payments: all payments are made directly to
+          the seller. Vendor fee structures, where applicable, are communicated to
+          vendors as part of the onboarding process. Any platform fees will be
+          disclosed clearly and are subject to change with notice.
         </p>
       </>
     ),
