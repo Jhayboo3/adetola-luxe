@@ -6,10 +6,15 @@ import { deleteProduct } from "./actions";
 import { requireStore } from "@/lib/store";
 
 
-export default async function AdminProductsPage({ searchParams }: { searchParams: Promise<{ uploaded?: string }> }) {
-  const uploaded = Number((await searchParams).uploaded ?? 0);
+export default async function AdminProductsPage({ searchParams }: { searchParams: Promise<{ uploaded?: string; page?: string }> }) {
+  const params = await searchParams;
+  const uploaded = Number(params.uploaded ?? 0);
+  const page = Math.min(Math.max(Number.parseInt(params.page ?? "1", 10) || 1, 1), 1000);
+  const PAGE_SIZE = 50;
   const store = await requireStore();
-  const products = await prisma.product.findMany({ where: { storeId: store.id }, orderBy: { createdAt: "desc" } });
+  const rows = await prisma.product.findMany({ where: { storeId: store.id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE + 1 });
+  const hasNext = rows.length > PAGE_SIZE;
+  const products = rows.slice(0, PAGE_SIZE);
   return (
     <div>
       <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
@@ -33,6 +38,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
           </tr>;
         })}</tbody></table></div>
       )}
+      {(page > 1 || hasNext) && <nav aria-label="Product pages" className="mt-6 flex items-center justify-between gap-4 font-body text-[12px]">{page > 1 ? <Link href={`/admin/products?page=${page - 1}`} className="cta-secondary px-5 py-3">Previous</Link> : <span />}<span className="text-muted">Page {page}</span>{hasNext ? <Link href={`/admin/products?page=${page + 1}`} className="cta-secondary px-5 py-3">Next</Link> : <span />}</nav>}
     </div>
   );
 }

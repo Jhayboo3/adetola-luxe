@@ -1,10 +1,10 @@
 "use server";
-import { revalidatePath } from "next/cache";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireStore } from "@/lib/store";
-import { ORDER_STATUS_CANCELLED, ORDER_STATUSES } from "@/lib/orders";
+import { canTransitionOrderStatus, ORDER_STATUSES } from "@/lib/orders";
 
 export async function updateOrder(formData: FormData) {
   const session = await auth();
@@ -16,26 +16,18 @@ export async function updateOrder(formData: FormData) {
   const paymentStatuses = ["pending", "paid"];
   if (!statuses.includes(status) || !paymentStatuses.includes(paymentStatus)) throw new Error("Invalid order status");
 
-  const order = await prisma.order.findFirst({
-    where: { id, storeId: store.id },
-    include: { items: { select: { productId: true, quantity: true } } },
-  });
-  if (!order) throw new Error("Order not found.");
+  const current = await prisma.order.findFirst({ where: { id, storeId: store.id }, select: { status: true } });
+  if (!current) throw new Error("Order not found.");
+  if (!canTransitionOrderStatus(current.status, status) || current.status === "cancelled") throw new Error("This order status transition is not allowed.");
 
-  // Stock is reserved (decremented) when the order is placed. Releasing it back
-  // only when moving into `cancelled` means abandoned WhatsApp negotiations no
-  // longer permanently drain inventory. Guarded so a repeated cancel cannot
-  // double-restore.
-  const wasCancelled = order.status === ORDER_STATUS_CANCELLED;
-  if (!wasCancelled && status === ORDER_STATUS_CANCELLED && order.items.length) {
-    const { env } = await getCloudflareContext({ async: true });
-    const statements: ReturnType<typeof env.DB.prepare>[] = order.items.map((item) =>
-      env.DB.prepare('UPDATE "Product" SET "stock" = "stock" + ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ?').bind(item.quantity, item.productId)
-    );
-    statements.push(env.DB.prepare('UPDATE "Order" SET "status" = ?, "paymentStatus" = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ?').bind(status, paymentStatus, id, store.id));
-    await env.DB.batch(statements);
-  } else {
-    await prisma.order.update({ where: { id, storeId: store.id }, data: { status, paymentStatus } });
-  }
+  // The status comparison is a compare-and-set guard. If another request
+  // changed the order after the read, this update is a no-op and the caller
+  // must refresh. Migration 0012 restores stock inside the winning update.
+  // Read the row returned by the guarded statement. D1's change count can
+  // include trigger writes (inventory restoration) and is not a row-match test.
+  const { env } = await getCloudflareContext({ async: true });
+  const updated = await env.DB.prepare('UPDATE "Order" SET "status" = ?, "paymentStatus" = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" = ? RETURNING "id"')
+    .bind(status, paymentStatus, id, store.id, current.status).first<{ id: string }>();
+  if (!updated) throw new Error("Order changed while you were editing. Refresh and try again.");
   revalidatePath("/admin/orders"); revalidatePath("/admin/dashboard");
 }

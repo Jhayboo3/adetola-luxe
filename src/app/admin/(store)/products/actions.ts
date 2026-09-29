@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 import { separateProductIdentity, uploadFileKey } from "@/lib/product-upload";
 import { requireStore } from "@/lib/store";
+import { koboToNaira, parseNairaToKobo } from "@/lib/money";
 
 export type ProductFormState = { error?: string; success?: string; completedFiles?: string[] };
 
@@ -59,19 +60,22 @@ function text(formData: FormData, key: string) {
 function baseProductData(formData: FormData) {
   const name = text(formData, "name");
   const description = text(formData, "description");
-  const price = Number(text(formData, "price"));
+  const priceMinor = parseNairaToKobo(text(formData, "price"));
   const stock = Number(text(formData, "stock"));
   if (!name) throw new Error("Name is required.");
-  if (!Number.isFinite(price) || price <= 0) throw new Error("Enter a valid price greater than zero.");
+  if (priceMinor <= 0) throw new Error("Enter a valid price greater than zero.");
   if (!Number.isInteger(stock) || stock < 0) throw new Error("Stock must be a whole number of zero or more.");
 
   const compareAtText = text(formData, "compareAt");
+  const compareAtMinor = compareAtText ? parseNairaToKobo(compareAtText) : null;
   return {
     name,
     slug: slugify(text(formData, "slug") || name),
     description,
-    price,
-    compareAt: compareAtText ? Number(compareAtText) : null,
+    price: koboToNaira(priceMinor),
+    priceMinor: BigInt(priceMinor),
+    compareAt: compareAtMinor == null ? null : koboToNaira(compareAtMinor),
+    compareAtMinor: compareAtMinor == null ? null : BigInt(compareAtMinor),
     sizes: JSON.stringify(text(formData, "sizes").split(",").map((v) => v.trim()).filter(Boolean)),
     colors: JSON.stringify(formData.getAll("colors").map(String).map((v) => v.trim()).filter(Boolean)),
     colorSelectable: formData.get("colorSelectable") === "on",

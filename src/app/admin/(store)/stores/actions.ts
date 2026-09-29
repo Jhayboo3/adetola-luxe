@@ -36,16 +36,3 @@ export async function setStoreVerified(formData: FormData) {
   revalidatePath("/admin/applications");
   revalidatePath("/", "layout");
 }
-
-// Permanently remove a store and its marketplace data. The FK cascade is scoped
-// to this store only, so unrelated stores/products/orders are never affected.
-// Use Suspend instead if historical order records must be preserved.
-export async function deleteStore(formData: FormData) {
-  await requirePlatformAdmin();
-  const id = String(formData.get("id"));
-  if (!id) throw new Error("Missing store id");
-  await prisma.store.delete({ where: { id } });
-  revalidatePath("/admin/stores");
-  revalidatePath("/admin/applications");
-  revalidatePath("/", "layout");
-}

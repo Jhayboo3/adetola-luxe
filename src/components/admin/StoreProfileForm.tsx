@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useState, useEffect } from "react";
+import { cloneElement, useActionState, useId, useState, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import {
   updateStoreLogo,
@@ -53,6 +53,21 @@ const textareaClass =
   "mt-2 w-full rounded-lg border border-line bg-white px-4 py-3 font-body text-[13px] text-black outline-none transition focus:border-[#005C29]";
 const SECTION_TITLE =
   "font-heading text-[17px] font-medium text-black";
+
+// Associates a visible label with its control via htmlFor/id so assistive
+// technology announces each field name correctly.
+function Field({ label, optional, className, children }: { label: string; optional?: boolean; className?: string; children: React.ReactElement<{ id?: string }> }) {
+  const id = useId();
+  return (
+    <div className={className}>
+      <label htmlFor={id} className={FIELD_LABEL}>
+        {label}
+        {optional && <span className={OPT_LABEL}>(optional)</span>}
+      </label>
+      {cloneElement(children, { id })}
+    </div>
+  );
+}
 
 function Feedback({ error, success }: { error?: string; success?: string }) {
   if (!error && !success) return null;
@@ -240,42 +255,33 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
           <p className="mt-1 font-body text-[12px] text-muted">Update your public store information. This is shown on your storefront.</p>
 
           <div className="mt-6 grid gap-5 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className={FIELD_LABEL}>Store Name</label>
+            <Field label="Store Name" className="md:col-span-2">
               <input className={`${inputClass} text-muted`} value={store.name} readOnly />
-            </div>
-            <div>
-              <label className={FIELD_LABEL}>Category<span className={OPT_LABEL}>(optional)</span></label>
+            </Field>
+            <Field label="Category" optional>
               <input className={inputClass} name="category" defaultValue={d(store.category)} placeholder="e.g. Women's fashion" />
-            </div>
-            <div>
-              <label className={FIELD_LABEL}>Country<span className={OPT_LABEL}>(optional)</span></label>
+            </Field>
+            <Field label="Country" optional>
               <input className={inputClass} name="country" defaultValue={d(store.country)} placeholder="e.g. Nigeria" />
-            </div>
-            <div>
-              <label className={FIELD_LABEL}>State<span className={OPT_LABEL}>(optional)</span></label>
+            </Field>
+            <Field label="State" optional>
               <input className={inputClass} name="state" defaultValue={d(store.state)} placeholder="e.g. Lagos" />
-            </div>
-            <div>
-              <label className={FIELD_LABEL}>City<span className={OPT_LABEL}>(optional)</span></label>
+            </Field>
+            <Field label="City" optional>
               <input className={inputClass} name="city" defaultValue={d(store.city)} placeholder="e.g. Lekki" />
-            </div>
-            <div>
-              <label className={FIELD_LABEL}>Area<span className={OPT_LABEL}>(optional)</span></label>
+            </Field>
+            <Field label="Area" optional>
               <input className={inputClass} name="area" defaultValue={d(store.area)} placeholder="e.g. Ajah" />
-            </div>
-            <div>
-              <label className={FIELD_LABEL}>Physical Address<span className={OPT_LABEL}>(optional, kept private)</span></label>
+            </Field>
+            <Field label="Physical Address" optional>
               <input className={inputClass} name="physicalAddress" defaultValue={d(store.physicalAddress)} placeholder="Business address or pickup point" />
-            </div>
-            <div>
-              <label className={FIELD_LABEL}>Map Location / Link<span className={OPT_LABEL}>(optional)</span></label>
+            </Field>
+            <Field label="Map Location / Link" optional>
               <input className={inputClass} name="mapLocation" defaultValue={d(store.mapLocation)} placeholder="Google Maps link or coordinates" />
-            </div>
-            <div className="md:col-span-2">
-              <label className={FIELD_LABEL}>Store Description<span className={OPT_LABEL}>(optional)</span></label>
+            </Field>
+            <Field label="Store Description" optional className="md:col-span-2">
               <textarea className={textareaClass} name="description" defaultValue={d(store.description)} rows={2} placeholder="Short tagline for your store" />
-            </div>
+            </Field>
 
             <div className="md:col-span-2 flex flex-wrap gap-6">
               <label className="flex cursor-pointer items-center gap-3 font-body text-[13px] text-black">
@@ -292,24 +298,19 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
           <div className="mt-6">
             <h3 className="font-heading text-[15px] font-medium text-black">Contact Details</h3>
             <div className="mt-4 grid gap-5 md:grid-cols-2">
-              <div>
-                <label className={FIELD_LABEL}>WhatsApp Number</label>
+              <Field label="WhatsApp Number">
                 <input className={inputClass} name="whatsapp" defaultValue={d(store.whatsapp)} placeholder="e.g. 2348000001234" />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Phone Number<span className={OPT_LABEL}>(optional)</span></label>
+              </Field>
+              <Field label="Phone Number" optional>
                 <input className={inputClass} name="phone" defaultValue={d(store.phone)} placeholder="e.g. 2348000001234" />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Email<span className={OPT_LABEL}>(optional)</span></label>
+              </Field>
+              <Field label="Email" optional>
                 <input className={inputClass} name="email" type="email" defaultValue={d(store.email)} placeholder="store@example.com" />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Instagram<span className={OPT_LABEL}>(optional)</span></label>
+              </Field>
+              <Field label="Instagram" optional>
                 <input className={inputClass} name="instagramUrl" defaultValue={d(store.instagramUrl)} placeholder="@yourstore or profile URL" />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Preferred Contact Method<span className={OPT_LABEL}>(optional)</span></label>
+              </Field>
+              <Field label="Preferred Contact Method" optional>
                 <select className={inputClass} name="preferredContactMethod" defaultValue={d(store.preferredContactMethod)}>
                   <option value="">Select…</option>
                   <option value="whatsapp">WhatsApp</option>
@@ -317,43 +318,36 @@ export default function StoreProfileForm({ store }: { store: StoreShape }) {
                   <option value="email">Email</option>
                   <option value="instagram">Instagram</option>
                 </select>
-              </div>
+              </Field>
             </div>
           </div>
 
           <div className="mt-6">
             <h3 className="font-heading text-[15px] font-medium text-black">Store Information</h3>
             <div className="mt-4 space-y-5">
-              <div>
-                <label className={FIELD_LABEL}>About the Store<span className={OPT_LABEL}>(optional)</span></label>
+              <Field label="About the Store" optional>
                 <textarea className={textareaClass} name="aboutStore" defaultValue={d(store.aboutStore)} rows={3} placeholder="Tell shoppers about your brand and story" />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>What You Sell<span className={OPT_LABEL}>(optional)</span></label>
+              </Field>
+              <Field label="What You Sell" optional>
                 <textarea className={textareaClass} name="productsDescription" defaultValue={d(store.productsDescription)} rows={2} placeholder="Describe your products" />
-              </div>
+              </Field>
               <div className="grid gap-5 md:grid-cols-2">
-                <div>
-                  <label className={FIELD_LABEL}>Opening Hours<span className={OPT_LABEL}>(optional)</span></label>
+                <Field label="Opening Hours" optional>
                   <input className={inputClass} name="openingHours" defaultValue={d(store.openingHours)} placeholder="e.g. Mon–Sat, 9am–6pm" />
-                </div>
-                <div>
-                  <label className={FIELD_LABEL}>Delivery Areas<span className={OPT_LABEL}>(optional)</span></label>
+                </Field>
+                <Field label="Delivery Areas" optional>
                   <input className={inputClass} name="deliveryAreas" defaultValue={d(store.deliveryAreas)} placeholder="e.g. Nationwide, Lagos only" />
-                </div>
+                </Field>
               </div>
-              <div>
-                <label className={FIELD_LABEL}>Pickup Information<span className={OPT_LABEL}>(optional)</span></label>
+              <Field label="Pickup Information" optional>
                 <textarea className={textareaClass} name="pickupInformation" defaultValue={d(store.pickupInformation)} rows={2} placeholder="Where/when customers can pick up orders" />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Payment Methods<span className={OPT_LABEL}>(optional)</span></label>
+              </Field>
+              <Field label="Payment Methods" optional>
                 <input className={inputClass} name="paymentMethods" defaultValue={d(store.paymentMethods)} placeholder="e.g. Bank transfer, Paystack, COD" />
-              </div>
-              <div>
-                <label className={FIELD_LABEL}>Return / Exchange Policy<span className={OPT_LABEL}>(optional)</span></label>
+              </Field>
+              <Field label="Return / Exchange Policy" optional>
                 <textarea className={textareaClass} name="returnPolicy" defaultValue={d(store.returnPolicy)} rows={3} placeholder="Describe your returns and exchange policy" />
-              </div>
+              </Field>
             </div>
           </div>
 

@@ -107,7 +107,7 @@ export default function ProductForm({ action, product, categories }: {
         <div className="flex flex-col gap-2"><label htmlFor="targetGender" className="font-body text-[12px] font-medium text-muted">Gender / Target Customer</label><select id="targetGender" name="targetGender" defaultValue={product?.targetGender ?? "Unisex"} className="h-[46px] border-b border-black bg-white font-body text-[14px] outline-none focus:border-gold"><option>Unisex</option><option>Male</option><option>Female</option></select></div>
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="description" className="font-body text-[12px] font-medium text-muted">Description<span className="ml-1 font-normal normal-case tracking-normal text-muted/70">(optional)</span></label>
+        <label htmlFor="description" className="font-body text-[12px] font-medium text-muted">Description<span className="ml-1 font-normal normal-case tracking-normal text-muted">(optional)</span></label>
         <textarea id="description" name="description" rows={5} defaultValue={product?.description} className="border border-line bg-transparent p-3 font-body text-[14px] text-black outline-none focus:border-gold" />
       </div>
       <div className="grid gap-6 md:grid-cols-3">

@@ -35,7 +35,7 @@ export default async function AllStoresPage() {
       <div className="mb-8">
         <h1 className="font-heading text-[24px] font-medium">All Stores</h1>
         <p className="mt-1 font-body text-[13px] text-muted">
-          Manage every store on the marketplace. Suspend to deactivate, or delete to remove permanently.
+          Manage every store on the marketplace. Suspend a store to deactivate it while preserving order history.
         </p>
       </div>
 
