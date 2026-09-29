@@ -25,6 +25,10 @@
 /prisma/*.db-journal
 /public/uploads/
 
+# love-letter song (copyrighted — keep it out of source control, it still deploys)
+/public/girls-like-you.mp3
+/*.mp3
+
 # misc
 .DS_Store
 *.pem
