@@ -272,3 +272,25 @@ Changed: `src/app/admin/(store)/stores/manage-client.tsx` (suspend bug fix), `sr
 **Dependency pinning.** `next` pinned to `~16.3.7` and `@opennextjs/cloudflare` to exact `1.20.7` to prevent accidental downgrade to the known-bad 16.3 + 1.20.2 combination. `eslint.config.mjs` ignores the generated `.wrangler/**` bundle (it had been scanned by `npm run lint`, producing thousands of spurious errors).
 
 **Verification:** `npm test` 25/25; `tsc` pass; `lint` pass (one pre-existing warning); `npm run build` pass; `npm run verify:worker-runtime` pass; `git diff --check` clean; `npm audit` 3 high / 3 moderate / 0 critical (unchanged, triaged). No redeploy was required or performed.
+
+## PPR runtime diagnosis and CI hardening (2026-09-29)
+
+**Method:** reproduced the mismatch under the production-representative `opennextjs-cloudflare preview` (workerd) against the current build; isolated it per route via the local observability API; one diagnostic non-minified build.
+
+**Findings.**
+- Affected routes: `/`, `/shop`, `/stores`, `/account/orders`, `/checkout`, `/search` — every **partial-prerender** route, all 200 and functional. `/cart` (static, non-PPR) is unaffected.
+- React #419 source: `react-dom-server.edge.production.js` PPR resume check — `Expected the resume to render <Suspense> in this slot but instead it rendered <…>`. `<F>`/`<F2>` are minified names; React expected a `<Suspense>` boundary and got a different element, then recovered by client rendering.
+- Because all PPR routes share one identical mismatch, the boundary is in the shared root layout (`<Suspense fallback={null}>` around the `SessionProvider`/`SiteChrome` tree), not page content.
+- Removing that boundary is **not viable**: Next fails the build with `useSearchParams() in a Client Component outside of <Suspense>` for `/cart`. The boundary is load-bearing.
+- Timing-sensitive: with `experimental.turbopackMinify:false` (diagnostic only) the mismatch did not occur across 10 requests, tying it to the framework's `setTimeout`/`CacheSignal` timer limitation rather than app logic.
+- `setTimeout` warning source: Next/react-dom internal `createAtomicTimerGroup` (app-level `setTimeout`/`setInterval` scan found none in server code). Upstream runtime limitation — no safe application fix.
+
+**Classification:** P2 — performance/streaming-optimisation degradation (client-render fallback) plus console noise. Not a hang, not a data/security/checkout defect.
+
+**Changes.** `scripts/verify-worker-runtime.mjs` expanded: prepares local D1, adds `/cart`, `/checkout` and a deterministic product route, retries a cold request 3× with warm-up so a slow first hit is not a false failure, counts PPR/setTimeout warnings separately (non-fatal), and guards the love host against marketplace leakage. New `scripts/prepare-local-d1.mjs` (migrated local D1 + `runtime-check` fixtures), `scripts/check-dependency-pins.mjs` (`npm run verify:deps`), and `.github/workflows/ci.yml` (PR + push to main; verification only, no deploy). Package scripts `verify:worker-runtime`, `verify:deps`, `prepare:local-d1` added.
+
+**Love subdomain:** regression-protected by the runtime gate (requests the love host and fails if any marketplace marker is served). Production `love.larkvine.org` remains healthy and marketplace-free.
+
+**Verification:** `npm test` 25/25; `tsc` pass; `lint` pass (one pre-existing warning); `npm run build` pass; `npm run verify:deps` pass; `npm run verify:worker-runtime` pass (all routes 200, no fatal signatures, no orphaned processes); `git diff --check` clean; `npm audit` 3 high/3 moderate/0 critical (unchanged). No production deploy required or performed — leaves `a5cc3fb0` untouched.
+
+**KNOWN NON-FATAL LIMITATION:** the PPR resume mismatch / React #419 / Cache Components `setTimeout` warning remain by design under the current known-good runtime. Do not redeploy to silence them.

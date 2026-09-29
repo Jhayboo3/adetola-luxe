@@ -55,3 +55,13 @@ npm run verify:worker-runtime   # builds, runs the worker under workerd, request
 `npm run verify:worker-runtime` requires a migrated local D1 (`.wrangler` state). It never deploys and never touches production. Raw `wrangler dev` is deliberately not used — it runs a developer-mode path that can hang independently of production; `opennextjs-cloudflare preview` mirrors the deployed invocation.
 
 **Release sequence:** tests → TypeScript → lint → build → `verify:worker-runtime` → deploy. A passing build alone is not sufficient; the worker must render the critical routes under workerd.
+
+### Known non-fatal PPR behaviour (Next 16.3 + workerd)
+
+Some partial-prerender (PPR) routes log, server-side, `Expected the resume to render <Suspense> in this slot but instead it rendered <…>` (message from `react-dom-server.edge.production.js`) and the browser reports React error #419; React then falls back to client rendering. Next also logs `Next.js cannot guarantee that Cache Components will run as expected due to the current runtime's implementation of setTimeout()`. Neither installs a hang: every affected route returns HTTP 200, renders correctly and stays interactive. `/cart` (non-PPR) is unaffected.
+
+Investigation (2026-09-29): every PPR route shares one identical mismatch, so the cause is in the shared root-layout `<Suspense fallback={null}>` boundary rather than page content. Removing that boundary is **not** safe — it is required so that client components using `useSearchParams()` (e.g. `/cart`) render (Next errors at build time without it). The mismatch is timing-sensitive: it disappears when the server bundle is not minified, consistent with the framework's own `setTimeout`/`CacheSignal` limitation. Classified **P2 — fallback/performance degradation only**, not user-visible breakage. `npm run verify:worker-runtime` counts these warnings but does not fail on them. Revisit only with an upstream Next/React fix or a deliberate Suspense-boundary refactor; do not destabilise the known-good runtime to silence console noise.
+
+### CI and dependency guard
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main` (verification only — it never deploys): install → `npm test` → `tsc --noEmit` → `lint` → `build` → `verify:deps` → `verify:worker-runtime` → `git diff --check`. `scripts/check-dependency-pins.mjs` (`npm run verify:deps`) asserts `next ~16.3.7` and `@opennextjs/cloudflare 1.20.7` in both `package.json` and the lockfile. `scripts/prepare-local-d1.mjs` (`npm run prepare:local-d1`) provisions a migrated local D1 plus deterministic `runtime-check` fixtures so the runtime gate works on a fresh checkout/CI runner.

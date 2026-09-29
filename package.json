@@ -12,6 +12,8 @@
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "verify:worker-runtime": "node scripts/verify-worker-runtime.mjs",
+    "verify:deps": "node scripts/check-dependency-pins.mjs",
+    "prepare:local-d1": "node scripts/prepare-local-d1.mjs",
     "prewarm": "node scripts/prewarm.mjs",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
