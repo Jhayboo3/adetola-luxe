@@ -13,8 +13,8 @@ const restored = join(root, "d1-restored");
 const database = "adetola-luxe-db";
 const migrations = readdirSync("prisma/migrations").filter((name) => /^\d{4}.*\.sql$/.test(name)).sort();
 const before = migrations.filter((name) => Number(name.slice(0, 4)) <= 11);
-const foundation = migrations.filter((name) => Number(name.slice(0, 4)) >= 12 && Number(name.slice(0, 4)) <= 17);
-assert.deepEqual(foundation.map((name) => name.slice(0, 4)), ["0012", "0013", "0014", "0015", "0016", "0017"]);
+const foundation = migrations.filter((name) => Number(name.slice(0, 4)) >= 12 && Number(name.slice(0, 4)) <= 20);
+assert.deepEqual(foundation.map((name) => name.slice(0, 4)), ["0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020"]);
 
 function wrangler(persist, option, value) {
   const args = ["wrangler", "d1", "execute", database, "--local", "--persist-to", persist, "--json", option, value];

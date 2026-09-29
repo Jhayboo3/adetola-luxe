@@ -73,3 +73,9 @@ Investigation (2026-09-29): every PPR route shares one identical mismatch, so th
 Release order when the gate allows: apply `0019` together with the matching application code (the expiry sweep, `acceptOrder`/`rejectOrder`, `cancelOwnOrder`, the `/api/orders/[id]/contact-opened` route and the updated lifecycle UI). The sweep depends on the `(status, createdAt)` index; the expiry triggers depend on nothing new. As with `0012`, the trigger and its matching code must ship together in a controlled window.
 
 Production compatibility is gated on the authorized production export: run `node scripts/rehearse-production-import.mjs --db <authorized-export.sqlite>` and confirm the historical orders, statuses and inventory are unchanged after `0012`–`0019`. Currently **BLOCKED — AUTHORIZED EXPORT REQUIRED**; nothing was applied to production.
+
+## Migration 0020 — persisted reservation deadline (local only, not deployed)
+
+`prisma/migrations/0020_order_reservation_deadline.sql` adds nullable `Order.reservationExpiresAt`, replaces `Order_status_createdAt_idx` with `Order_status_reservationExpiresAt_idx`, and adds `OrderItem_productId_idx`. It makes checkout run a product-scoped expiry before stock validation so a stale reservation cannot block a new buyer, and makes each order's deadline stable against config changes. Additive and back-compatible (historical rows keep `reservationExpiresAt = NULL` = grandfathered; no state/inventory change). Applied to local D1 only.
+
+Release order: apply `0019` then `0020` together with the matching code (expiry sweep, targeted cleanup, accept/reject/cancel, contact-opened, lifecycle UI). Both are covered by the production-import rehearsal list; run `node scripts/rehearse-production-import.mjs --db <authorized-export.sqlite>` and confirm historical orders/statuses/inventory are unchanged. **BLOCKED — AUTHORIZED EXPORT REQUIRED**; nothing applied to production.

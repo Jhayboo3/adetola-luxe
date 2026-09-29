@@ -4,7 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { CUSTOMER_CANCELLABLE_STATUSES, ORDER_STATUS_CANCELLED } from "@/lib/orders";
-import { expiryCutoff, expireOrderIfStale } from "@/lib/order-expiry";
+import { expireOrderIfStale } from "@/lib/order-expiry";
 
 export type CancelOrderState = { ok: boolean; error?: string };
 
@@ -22,10 +22,10 @@ export async function cancelOwnOrder(_state: CancelOrderState, formData: FormDat
 
   const { env } = await getCloudflareContext({ async: true });
   const placeholders = CUSTOMER_CANCELLABLE_STATUSES.map(() => "?").join(",");
-  const cutoff = expiryCutoff();
+  const now = new Date().toISOString();
   const updated = await env.DB.prepare(
-    `UPDATE "Order" SET "status" = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "userId" = ? AND "status" IN (${placeholders}) AND "createdAt" > ? RETURNING "id"`,
-  ).bind(ORDER_STATUS_CANCELLED, id, session.user.id, ...CUSTOMER_CANCELLABLE_STATUSES, cutoff).first<{ id: string }>();
+    `UPDATE "Order" SET "status" = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "userId" = ? AND "status" IN (${placeholders}) AND ("reservationExpiresAt" IS NULL OR "reservationExpiresAt" > ?) RETURNING "id"`,
+  ).bind(ORDER_STATUS_CANCELLED, id, session.user.id, ...CUSTOMER_CANCELLABLE_STATUSES, now).first<{ id: string }>();
 
   revalidatePath("/account/orders");
   if (!updated) {

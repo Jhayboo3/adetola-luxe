@@ -285,3 +285,17 @@ Migration rehearsal: **BLOCKED — AUTHORIZED EXPORT REQUIRED.** `0019` is addit
 No inventory logic is duplicated in application code: restoration remains entirely in the `0012` (cancel) and `0019` (expire) database triggers, firing once on first entry to the terminal state.
 
 Deterministic terminal-state rule: **expired takes precedence over a late vendor/customer action for unaccepted reservations.** Covered by `tests/order-reservation-deadline.test.mjs`.
+
+## Reservation stock-availability invariant + persisted deadline (2026-09-29, migration 0020)
+
+**Finding (fixed):** a stale, unswept reservation still held its inventory. Checkout read `Product.stock > 0` and validated quantities **before** any expiry ran, and the opportunistic sweep ran only after order creation (`ctx.waitUntil`). So for a last-unit product, a past-deadline order kept `stock = 0` and a new buyer saw "sold out" until a sweep happened to run. The 12 h policy was therefore still sweep-timing dependent.
+
+**Fix — persisted deadline.** Each order now stores `reservationExpiresAt = createdAt + window` at creation (migration 0020). The configured `ORDER_RESERVATION_WINDOW_HOURS` affects only **new** orders; existing deadlines are stable, so changing the env var cannot move an order's deadline. Every path (sweep, targeted cleanup, Accept, customer Cancel, vendor Reject) compares against the persisted `reservationExpiresAt`; historical rows with `NULL` are grandfathered (never auto-expired, never product-cleaned) so the migration changes no existing order's state or inventory.
+
+**Fix — product-scoped cleanup before stock validation.** `expireStaleReservationsForProducts(env, productIds)` runs at the start of `POST /api/orders`, before the authoritative product/stock read. It finds stale, unaccepted child orders reserving any cart product (indexed `OrderItem(productId)`), expires them via the same guarded compare-and-set, and the `0019` trigger restores their stock. A new buyer can therefore purchase a unit freed by an unswept stale reservation. The general opportunistic sweep is retained for housekeeping; it is no longer relied on for stock correctness. Inventory restoration remains entirely database/trigger-controlled — no stock is ever adjusted in application code.
+
+**Granularity.** Expiry is per **child order**: expiring one child restores *all* quantities it reserved; sibling vendor orders (and their stock) are untouched; a multi-product child order restores every one of its items exactly once.
+
+**Index/query plan** (`scripts/measure-expiry-queries.mjs`, 20 k orders / 40 k items): sweep uses `Order_status_reservationExpiresAt_idx` (SEARCH + temp sort for ORDER BY, p50 0.018 ms); targeted cleanup uses `OrderItem_productId_idx` then Order by id (p50 0.009 ms). `(status, createdAt)` was replaced by `(status, reservationExpiresAt)` to match the actual expiry predicate; `OrderItem(productId)` added. No redundant indexes.
+
+**Migration 0020** `0020_order_reservation_deadline.sql`: `ALTER TABLE "Order" ADD COLUMN "reservationExpiresAt" DATETIME`; drop `Order_status_createdAt_idx`; create `Order_status_reservationExpiresAt_idx` and `OrderItem_productId_idx`. Additive; applied to local D1 only. **Not applied to production.** 0019 was not rewritten (already published); 0020 carries the change, respecting migration-history conventions.

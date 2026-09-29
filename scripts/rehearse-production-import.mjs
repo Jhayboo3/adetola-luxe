@@ -26,7 +26,7 @@ if (!selfTest && (!dbArg || dbArg.startsWith("--"))) {
 const migrations = readdirSync("prisma/migrations").filter((name) => /^\d{4}.*\.sql$/.test(name)).sort();
 const before = migrations.filter((name) => Number(name.slice(0, 4)) <= 11);
 const foundation = migrations.filter((name) => Number(name.slice(0, 4)) >= 12);
-assert.deepEqual(foundation.map((name) => name.slice(0, 4)), ["0012", "0013", "0014", "0015", "0016", "0017", "0018"]);
+assert.deepEqual(foundation.map((name) => name.slice(0, 4)), ["0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020"]);
 
 const root = mkdtempSync(join(tmpdir(), "larkvine-rehearsal-"));
 
@@ -94,7 +94,7 @@ const preflight = {
 };
 beforeDb.close();
 
-// Apply 0012-0018 to a copy and confirm historical row counts, inventory and
+// Apply 0012-0020 to a copy and confirm historical row counts, inventory and
 // order totals are unchanged. This proves the migration set is non-destructive
 // on the supplied data; it does not prove production correctness.
 const migratedPath = join(root, "migrated.sqlite");

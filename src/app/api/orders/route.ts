@@ -6,7 +6,8 @@ import { isGarmentSize } from "@/lib/measurements";
 import { storeWhatsappFromRecord, vendorHasContact } from "@/lib/store";
 import { ORDER_STATUS_SENT_TO_WHATSAPP } from "@/lib/orders";
 import { orderWhatsappMessage, whatsappOrderUrl } from "@/lib/whatsapp";
-import { sweepExpiredOrders } from "@/lib/order-expiry";
+import { sweepExpiredOrders, expireStaleReservationsForProducts } from "@/lib/order-expiry";
+import { reservationExpiresAtIso } from "@/lib/reservation";
 import { canonicalCheckoutRequest, sha256, type CheckoutRequestCustomer, type CheckoutRequestItem } from "@/lib/checkout-idempotency";
 import { addKobo, koboToNaira, multiplyKobo, nairaToKobo } from "@/lib/money";
 
@@ -75,6 +76,12 @@ export async function POST(request: Request) {
       return Response.json({ error: "This checkout was started before the latest update. Please start a new checkout." }, { status: 409 });
     }
     const ids = [...new Set(requested.map((item) => item.productId))];
+    // Product-scoped expiry BEFORE authoritative stock validation: a stale,
+    // unswept reservation for these products must not block a new buyer while
+    // its inventory is still locked. Stock restoration stays database-controlled
+    // (the 0019 trigger), never application code.
+    const { env, ctx } = await getCloudflareContext({ async: true });
+    await expireStaleReservationsForProducts(env, ids).catch(() => 0);
     const products = await prisma.product.findMany({ where: { id: { in: ids }, published: true, stock: { gt: 0 }, store: { status: "approved" } }, include: { store: { select: { id: true, name: true, slug: true, whatsapp: true, phone: true, owner: { select: { whatsapp: true, phone: true } } } } } });
     if (products.length !== ids.length) return (await replayCheckout()) ?? Response.json({ error: "One or more cart items are sold out or unavailable." }, { status: 409 });
     const byId = new Map(products.map((product) => [product.id, product]));
@@ -116,8 +123,8 @@ export async function POST(request: Request) {
       groups.get(key)!.push(item);
     }
 
-    const { env, ctx } = await getCloudflareContext({ async: true });
     const now = new Date().toISOString();
+    const reservationExpiresAt = reservationExpiresAtIso(Date.parse(now));
     const gender = customer.gender === "Male" || customer.gender === "Female" ? customer.gender : null;
     const address = `${customer.address}, ${customer.city}, ${customer.state}${customer.zip ? `, ${customer.zip}` : ""}`;
 
@@ -145,7 +152,7 @@ export async function POST(request: Request) {
       });
       createdMeta.push({ storeId, order: { id: orderId, orderCode, store, message } });
       statements.push(
-        env.DB.prepare(`INSERT INTO "Order" ("id","checkoutId","storeId","orderCode","email","name","address","city","state","zip","country","phone","whatsapp","deliveryInfo","userId","checkoutToken","gender","size","measurementUnit","measurementSnapshot","measurementCapturedAt","subtotal","currency","subtotalMinor","shipping","shippingMinor","discountMinor","total","totalMinor","status","paymentMethod","paymentStatus","notes","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(orderId, checkoutId, storeId, orderCode, customer.email, customer.name, customer.address, customer.city, customer.state, customer.zip || "", "NG", customer.phone, customer.whatsapp, customer.deliveryInfo ?? "", ownerId, null, gender, customer.size, null, "{}", null, subtotal, "NGN", subtotalMinor, 0, 0, null, subtotal, subtotalMinor, ORDER_STATUS_SENT_TO_WHATSAPP, "whatsapp", "pending", message, now, now),
+        env.DB.prepare(`INSERT INTO "Order" ("id","checkoutId","storeId","orderCode","email","name","address","city","state","zip","country","phone","whatsapp","deliveryInfo","userId","checkoutToken","gender","size","measurementUnit","measurementSnapshot","measurementCapturedAt","subtotal","currency","subtotalMinor","shipping","shippingMinor","discountMinor","total","totalMinor","status","paymentMethod","paymentStatus","reservationExpiresAt","notes","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(orderId, checkoutId, storeId, orderCode, customer.email, customer.name, customer.address, customer.city, customer.state, customer.zip || "", "NG", customer.phone, customer.whatsapp, customer.deliveryInfo ?? "", ownerId, null, gender, customer.size, null, "{}", null, subtotal, "NGN", subtotalMinor, 0, 0, null, subtotal, subtotalMinor, ORDER_STATUS_SENT_TO_WHATSAPP, "whatsapp", "pending", reservationExpiresAt, message, now, now),
         ...items.map((item) => env.DB.prepare(`INSERT INTO "OrderItem" ("id","storeId","orderId","productId","quantity","size","color","price","priceMinor") VALUES (?,?,?,?,?,?,?,?,?)`).bind(crypto.randomUUID(), storeId, orderId, item.productId, item.quantity, item.size, item.color, koboToNaira(item.unitMinor), item.unitMinor))
       );
     }

@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireStore } from "@/lib/store";
 import { canTransitionOrderStatus, ORDER_STATUSES, ACCEPTABLE_STATUSES, VENDOR_CANCELLABLE_STATUSES, ORDER_STATUS_CONFIRMED, ORDER_STATUS_CANCELLED, isRejectionReason } from "@/lib/orders";
-import { expiryCutoff, expireOrderIfStale } from "@/lib/order-expiry";
+import { expireOrderIfStale } from "@/lib/order-expiry";
 
 export async function updateOrder(formData: FormData) {
   const session = await auth();
@@ -50,10 +50,10 @@ export async function acceptOrder(formData: FormData) {
 
   const { env } = await getCloudflareContext({ async: true });
   const placeholders = ACCEPTABLE_STATUSES.map(() => "?").join(",");
-  const cutoff = expiryCutoff();
+  const now = new Date().toISOString();
   const updated = await env.DB.prepare(
-    `UPDATE "Order" SET "status" = ?, "acceptedAt" = COALESCE("acceptedAt", ?), "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" IN (${placeholders}) AND "createdAt" > ? RETURNING "id"`,
-  ).bind(ORDER_STATUS_CONFIRMED, new Date().toISOString(), id, store.id, ...ACCEPTABLE_STATUSES, cutoff).first<{ id: string }>();
+    `UPDATE "Order" SET "status" = ?, "acceptedAt" = COALESCE("acceptedAt", ?), "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" IN (${placeholders}) AND ("reservationExpiresAt" IS NULL OR "reservationExpiresAt" > ?) RETURNING "id"`,
+  ).bind(ORDER_STATUS_CONFIRMED, now, id, store.id, ...ACCEPTABLE_STATUSES, now).first<{ id: string }>();
   if (!updated) {
     const expiredNow = await expireOrderIfStale(env, id, { storeId: store.id });
     throw new Error(expiredNow
@@ -81,10 +81,10 @@ export async function rejectOrder(formData: FormData) {
 
   const { env } = await getCloudflareContext({ async: true });
   const placeholders = VENDOR_CANCELLABLE_STATUSES.map(() => "?").join(",");
-  const cutoff = expiryCutoff();
+  const now = new Date().toISOString();
   const updated = await env.DB.prepare(
-    `UPDATE "Order" SET "status" = ?, "rejectionReason" = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" IN (${placeholders}) AND ("status" = ? OR "createdAt" > ?) RETURNING "id"`,
-  ).bind(ORDER_STATUS_CANCELLED, reason, id, store.id, ...VENDOR_CANCELLABLE_STATUSES, ORDER_STATUS_CONFIRMED, cutoff).first<{ id: string }>();
+    `UPDATE "Order" SET "status" = ?, "rejectionReason" = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" IN (${placeholders}) AND ("status" = ? OR "reservationExpiresAt" IS NULL OR "reservationExpiresAt" > ?) RETURNING "id"`,
+  ).bind(ORDER_STATUS_CANCELLED, reason, id, store.id, ...VENDOR_CANCELLABLE_STATUSES, ORDER_STATUS_CONFIRMED, now).first<{ id: string }>();
   if (!updated) {
     const expiredNow = await expireOrderIfStale(env, id, { storeId: store.id });
     throw new Error(expiredNow

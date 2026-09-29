@@ -194,6 +194,7 @@ model Order {
   vendorContactOpenedAt DateTime?
   acceptedAt    DateTime?
   rejectionReason String?
+  reservationExpiresAt DateTime?
   notes         String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -201,7 +202,7 @@ model Order {
   @@index([userId])
   @@index([checkoutId])
   @@index([storeId])
-  @@index([status, createdAt])
+  @@index([status, reservationExpiresAt])
   @@unique([storeId, orderCode])
   @@unique([storeId, checkoutToken])
 }
@@ -217,10 +218,11 @@ model OrderItem {
   quantity  Int
   size      String
   color     String  @default("Default")
-  price     Float
+  price      Float
   priceMinor BigInt?
 
   @@index([storeId])
+  @@index([productId])
 }
 
 model DiscountCode {
