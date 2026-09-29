@@ -267,3 +267,21 @@ Implemented:
 - Vendor `/admin/orders`: order age, status, WhatsApp-handoff timestamp, accepted time, rejection reason, prominent **Accept order** and **Reject / Cancel** (reason select); `cancelled`/`expired` are read-only; payment select retained and labelled vendor-reported. Customer `/account/orders`: buyer labels, per-order **Cancel order** before acceptance, expiry explanation + **Order again**, WhatsApp handoff tracking.
 
 Migration rehearsal: **BLOCKED — AUTHORIZED EXPORT REQUIRED.** `0019` is additive (nullable columns, one index, triggers) and local production-like rehearsal on synthetic data is covered by `tests/order-lifecycle.test.mjs`, but no authorized production export is available, so production compatibility of the historical 10 orders is unverified. Do not apply to production until the rehearsal gate clears.
+
+## Reservation-deadline invariant (2026-09-29)
+
+**Finding (fixed):** `acceptOrder` (and, by the same pattern, vendor reject and customer cancel) originally checked only `status IN ('sent_to_whatsapp','pending')`. Because the expiry sweep is opportunistic and throttled, a delayed sweep let a vendor Accept a stale order past its 12-hour deadline, extending the reservation indefinitely. That violated the approved rule.
+
+**Fix — single source of deadline semantics.** `src/lib/reservation.ts` is now the only place the policy lives: `ORDER_RESERVATION_WINDOW_HOURS = 12`, `reservationWindowHours()` (env `ORDER_RESERVATION_WINDOW_HOURS`), `reservationDeadlineMs`, `isReservationActive`, `reservationCutoffIso`. `order-expiry.ts` re-exports these and every mutation path uses `expiryCutoff()`.
+
+**Exact semantics.** A reservation is active iff `Order.createdAt > now − window` (equivalently `now < createdAt + window`). At the boundary, equal to the deadline means the reservation has passed.
+
+**Behaviour of each action when the deadline has passed (whether or not the sweep ran):**
+- **Vendor Accept** (`sent_to_whatsapp`/`pending`): the guarded `UPDATE … WHERE … AND "createdAt" > ?` matches nothing, so it cannot confirm; the action then calls `expireOrderIfStale(env, id, { storeId })`, which atomically sets `expired` and releases stock via the `0019` trigger, and returns a "reservation window has passed … expired" error. Terminal state is **expired**, never confirmed.
+- **Customer Cancel** (`sent_to_whatsapp`/`pending`): same guard; a stale order **expires**, not cancels — a late customer action cannot choose the terminal state. Owner-scoped expiry (`{ userId }`).
+- **Vendor Reject** (`sent_to_whatsapp`/`pending`/`confirmed`): for *unaccepted* statuses the deadline is required (`"createdAt" > ?`), so a stale order **expires** instead of being cancelled. A **`confirmed`** order has already consumed its reservation, so the clause `("status" = 'confirmed' OR "createdAt" > ?)` lets it be cancelled at any time before dispatch.
+- **Sweep**: identical eligible set and deadline; a delayed or repeated run can never extend a reservation because each action re-evaluates the deadline at action time.
+
+No inventory logic is duplicated in application code: restoration remains entirely in the `0012` (cancel) and `0019` (expire) database triggers, firing once on first entry to the terminal state.
+
+Deterministic terminal-state rule: **expired takes precedence over a late vendor/customer action for unaccepted reservations.** Covered by `tests/order-reservation-deadline.test.mjs`.

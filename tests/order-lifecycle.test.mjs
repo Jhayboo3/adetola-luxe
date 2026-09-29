@@ -48,7 +48,7 @@ function schema(db) {
 }
 
 const EXPIRE = `UPDATE "Order" SET "status" = 'expired' WHERE "id" = ? AND "status" IN ('sent_to_whatsapp','pending') AND "createdAt" <= ?`;
-const ACCEPT = `UPDATE "Order" SET "status" = 'confirmed', "acceptedAt" = COALESCE("acceptedAt", ?) WHERE "id" = ? AND "status" IN ('sent_to_whatsapp','pending')`;
+const ACCEPT = `UPDATE "Order" SET "status" = 'confirmed', "acceptedAt" = COALESCE("acceptedAt", ?) WHERE "id" = ? AND "status" IN ('sent_to_whatsapp','pending') AND "createdAt" > ?`;
 const CUSTOMER_CANCEL = `UPDATE "Order" SET "status" = 'cancelled' WHERE "id" = ? AND "userId" = ? AND "status" IN ('sent_to_whatsapp','pending')`;
 const VENDOR_CANCEL = `UPDATE "Order" SET "status" = 'cancelled', "rejectionReason" = ? WHERE "id" = ? AND "storeId" = ? AND "status" IN ('sent_to_whatsapp','pending','confirmed')`;
 const CONTACT_OPENED = `UPDATE "Order" SET "vendorContactOpenedAt" = ? WHERE "id" = ? AND "vendorContactOpenedAt" IS NULL`;
@@ -255,16 +255,17 @@ test("1 expiry racing Accept: one winner, correct stock", async () => {
     const db = new DatabaseSync(path);
     try {
       schema(db);
-      db.exec(`INSERT INTO "Order" ("id","storeId","status","createdAt") VALUES ('o','store-a','sent_to_whatsapp','2020-01-01T00:00:00.000Z')`);
+      db.exec(`INSERT INTO "Order" ("id","storeId","status","createdAt") VALUES ('o','store-a','sent_to_whatsapp','2026-06-01T00:00:00.000Z')`);
       db.exec(`INSERT INTO "Product" VALUES ('p','store-a',2,NULL)`);
       db.exec(`INSERT INTO "OrderItem" VALUES ('o','p','store-a',1)`);
+      // Active reservation: Accept wins, expiry is a no-op.
       await Promise.all([
         runInWorker(path, EXPIRE, ["o", CUTOFF]),
-        runInWorker(path, ACCEPT, ["2026-01-01T00:00:00.000Z", "o"]),
+        runInWorker(path, ACCEPT, ["2026-06-01T01:00:00.000Z", "o", CUTOFF]),
       ]);
       const s = status(db, "o");
-      assert.ok(["confirmed", "expired"].includes(s), `status ${s}`);
-      assert.equal(stock(db, "p"), s === "expired" ? 2 : 1, `stock for ${s}`);
+      assert.equal(s, "confirmed");
+      assert.equal(stock(db, "p"), 1, "stock stays reserved");
     } finally { db.close(); rmSync(directory, { recursive: true, force: true }); }
   }
 });
@@ -294,12 +295,12 @@ test("5 simultaneous vendor actions apply once", async () => {
   const db = new DatabaseSync(path);
   try {
     schema(db);
-    db.exec(`INSERT INTO "Order" ("id","storeId","status","createdAt") VALUES ('o','store-a','sent_to_whatsapp','2020-01-01T00:00:00.000Z')`);
+    db.exec(`INSERT INTO "Order" ("id","storeId","status","createdAt") VALUES ('o','store-a','sent_to_whatsapp','2026-06-01T00:00:00.000Z')`);
     db.exec(`INSERT INTO "Product" VALUES ('p','store-a',2,NULL)`);
     db.exec(`INSERT INTO "OrderItem" VALUES ('o','p','store-a',1)`);
     const results = await Promise.all([
-      runInWorker(path, ACCEPT, ["2026-01-01T00:00:00.000Z", "o"]),
-      runInWorker(path, ACCEPT, ["2026-01-01T00:00:00.000Z", "o"]),
+      runInWorker(path, ACCEPT, ["2026-06-01T01:00:00.000Z", "o", CUTOFF]),
+      runInWorker(path, ACCEPT, ["2026-06-01T01:00:00.000Z", "o", CUTOFF]),
     ]);
     assert.deepEqual(results.map((r) => r.changes).sort(), [0, 1]);
     assert.equal(status(db, "o"), "confirmed");

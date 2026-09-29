@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireStore } from "@/lib/store";
 import { canTransitionOrderStatus, ORDER_STATUSES, ACCEPTABLE_STATUSES, VENDOR_CANCELLABLE_STATUSES, ORDER_STATUS_CONFIRMED, ORDER_STATUS_CANCELLED, isRejectionReason } from "@/lib/orders";
+import { expiryCutoff, expireOrderIfStale } from "@/lib/order-expiry";
 
 export async function updateOrder(formData: FormData) {
   const session = await auth();
@@ -35,6 +36,11 @@ export async function updateOrder(formData: FormData) {
 // Vendor acceptance: "I acknowledge this order and intend to fulfil it."
 // It never means payment was verified or processed by Larkvine, leaves stock
 // reserved, and cannot override an expiry or cancellation that already won.
+//
+// Acceptance additionally requires the reservation to still be active
+// (createdAt > expiryCutoff). A delayed sweep must never let a stale order be
+// accepted and hold inventory past its 12-hour window; if the deadline passed,
+// the order is expired authoritatively here (stock restored by the 0019 trigger).
 export async function acceptOrder(formData: FormData) {
   const session = await auth();
   const role = (session?.user as { role?: string } | undefined)?.role;
@@ -44,15 +50,26 @@ export async function acceptOrder(formData: FormData) {
 
   const { env } = await getCloudflareContext({ async: true });
   const placeholders = ACCEPTABLE_STATUSES.map(() => "?").join(",");
+  const cutoff = expiryCutoff();
   const updated = await env.DB.prepare(
-    `UPDATE "Order" SET "status" = ?, "acceptedAt" = COALESCE("acceptedAt", ?), "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" IN (${placeholders}) RETURNING "id"`,
-  ).bind(ORDER_STATUS_CONFIRMED, new Date().toISOString(), id, store.id, ...ACCEPTABLE_STATUSES).first<{ id: string }>();
-  if (!updated) throw new Error("This order can no longer be accepted — it may have expired or been cancelled.");
+    `UPDATE "Order" SET "status" = ?, "acceptedAt" = COALESCE("acceptedAt", ?), "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" IN (${placeholders}) AND "createdAt" > ? RETURNING "id"`,
+  ).bind(ORDER_STATUS_CONFIRMED, new Date().toISOString(), id, store.id, ...ACCEPTABLE_STATUSES, cutoff).first<{ id: string }>();
+  if (!updated) {
+    const expiredNow = await expireOrderIfStale(env, id, { storeId: store.id });
+    throw new Error(expiredNow
+      ? "This order's reservation window has passed, so it expired and the stock was released. It can no longer be accepted."
+      : "This order can no longer be accepted — it may have expired or been cancelled.");
+  }
   revalidatePath("/admin/orders"); revalidatePath("/admin/dashboard");
 }
 
 // Vendor rejection/cancellation before dispatch, with a bounded reason. Stock is
 // restored exactly once by the 0012 trigger inside the same statement.
+//
+// An *unaccepted* order may only be rejected while its reservation is active; a
+// stale (past-deadline) order is expired instead, so a late vendor action never
+// revives or extends the reservation. A `confirmed` order has already consumed
+// its reservation and may be cancelled at any time before dispatch.
 export async function rejectOrder(formData: FormData) {
   const session = await auth();
   const role = (session?.user as { role?: string } | undefined)?.role;
@@ -64,9 +81,15 @@ export async function rejectOrder(formData: FormData) {
 
   const { env } = await getCloudflareContext({ async: true });
   const placeholders = VENDOR_CANCELLABLE_STATUSES.map(() => "?").join(",");
+  const cutoff = expiryCutoff();
   const updated = await env.DB.prepare(
-    `UPDATE "Order" SET "status" = ?, "rejectionReason" = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" IN (${placeholders}) RETURNING "id"`,
-  ).bind(ORDER_STATUS_CANCELLED, reason, id, store.id, ...VENDOR_CANCELLABLE_STATUSES).first<{ id: string }>();
-  if (!updated) throw new Error("This order can no longer be cancelled.");
+    `UPDATE "Order" SET "status" = ?, "rejectionReason" = ?, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "storeId" = ? AND "status" IN (${placeholders}) AND ("status" = ? OR "createdAt" > ?) RETURNING "id"`,
+  ).bind(ORDER_STATUS_CANCELLED, reason, id, store.id, ...VENDOR_CANCELLABLE_STATUSES, ORDER_STATUS_CONFIRMED, cutoff).first<{ id: string }>();
+  if (!updated) {
+    const expiredNow = await expireOrderIfStale(env, id, { storeId: store.id });
+    throw new Error(expiredNow
+      ? "This order's reservation window has passed, so it expired and the stock was released."
+      : "This order can no longer be cancelled.");
+  }
   revalidatePath("/admin/orders"); revalidatePath("/admin/dashboard");
 }

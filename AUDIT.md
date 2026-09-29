@@ -326,3 +326,9 @@ Changed: `src/app/admin/(store)/stores/manage-client.tsx` (suspend bug fix), `sr
 **Migration rehearsal:** BLOCKED — AUTHORIZED EXPORT REQUIRED. Migration `0019` is additive but production-defensive rehearsal against the historical orders has not run. **No deploy.**
 
 **Not done by design:** no payment gateway/wallet/payout/ledger/commission; guest cancellation (would require weakening guest security); no custom Cron worker (a future cron can call `sweepExpiredOrders` unchanged).
+
+## Reservation-deadline invariant audit (2026-09-29)
+
+**Bug found and fixed:** `acceptOrder` (and vendor reject / customer cancel) checked only status, not the 12-hour deadline. A delayed opportunistic sweep therefore allowed a stale order to be accepted past its deadline, extending the reservation indefinitely. Fixed by centralising deadline semantics in `src/lib/reservation.ts` and requiring `"createdAt" > expiryCutoff` in every mutation; a stale order is now expired authoritatively (`expireOrderIfStale`, stock released by the `0019` trigger) rather than acted on. Confirmed orders (which have consumed their reservation) remain cancellable regardless of the deadline. Deterministic rule: expiry takes precedence over a late unaccepted action.
+
+**Tests:** `tests/order-reservation-deadline.test.mjs` (8 tests: central config, stale-unswept accept, precise boundary, stale customer cancel, stale vendor reject, active accept + no reopen, accept-vs-expiry exactly-one, delayed-sweep-does-not-extend) plus a source-level guard that the action SQL keeps the deadline clause and the authoritative-expiry fallback. Suite 47/47; tsc/lint/build/verify:deps/verify:worker-runtime pass. No deploy; `0019` remains local-only.

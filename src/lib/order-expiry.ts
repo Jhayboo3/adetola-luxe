@@ -5,29 +5,50 @@
 // opens WhatsApp. A sweep is request-driven and bounded; a future Cron worker
 // can call `sweepExpiredOrders` with `force: true` without changing business
 // logic.
+//
+// Deadline semantics live in `src/lib/reservation.ts` (single source). Every
+// mutation path — sweep, Accept, customer Cancel, vendor Reject — must require
+// the reservation to still be active, so a delayed sweep can never extend a
+// reservation.
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { EXPIRABLE_STATUSES } from "@/lib/orders";
+import { ORDER_RESERVATION_WINDOW_HOURS, reservationCutoffIso, reservationWindowHours } from "@/lib/reservation";
 
-// Central configuration. Do not hard-code the window elsewhere.
-export const ORDER_RESERVATION_WINDOW_HOURS = 12;
+export { ORDER_RESERVATION_WINDOW_HOURS, reservationWindowHours };
 
 // Small batch + throttle so opportunistic sweeps are cheap when nothing is stale.
 export const EXPIRY_BATCH_SIZE = 25;
 const EXPIRY_THROTTLE_MS = 5 * 60 * 1000;
 
-export function reservationWindowHours(): number {
-  const raw = Number(process.env.ORDER_RESERVATION_WINDOW_HOURS);
-  return Number.isFinite(raw) && raw > 0 ? raw : ORDER_RESERVATION_WINDOW_HOURS;
-}
-
-// ISO-8601 cutoff. New orders store createdAt as an ISO string; older rows use
-// SQLite's `YYYY-MM-DD HH:MM:SS`, which still compares chronologically because
-// both begin with the UTC date and older rows sort before newer ones.
+// ISO cutoff such that `createdAt > cutoff` ⇔ reservation still active.
 export function expiryCutoff(now: number = Date.now()): string {
-  return new Date(now - reservationWindowHours() * 3_600_000).toISOString();
+  return reservationCutoffIso(now, reservationWindowHours());
 }
 
 const EXPIRABLE_LIST = EXPIRABLE_STATUSES.map((status) => `'${status}'`).join(",");
+
+// Atomically expire ONE specific order whose reservation deadline has passed.
+// The transition is a guarded compare-and-set; the 0019 trigger restores stock
+// exactly once and only on the first entry into 'expired'. Returns true when
+// this call performed the transition. Optional scope limits which order the
+// caller may expire (store ownership / customer ownership).
+export async function expireOrderIfStale(
+  env: CloudflareEnv,
+  id: string,
+  scope?: { storeId?: string; userId?: string; now?: number },
+): Promise<boolean> {
+  const cutoff = expiryCutoff(scope?.now);
+  const clauses = [`"id" = ?`];
+  const bind: unknown[] = [id];
+  if (scope?.storeId) { clauses.push(`"storeId" = ?`); bind.push(scope.storeId); }
+  if (scope?.userId) { clauses.push(`"userId" = ?`); bind.push(scope.userId); }
+  bind.push(cutoff);
+  const updated = await env.DB
+    .prepare(`UPDATE "Order" SET "status" = 'expired', "updatedAt" = CURRENT_TIMESTAMP WHERE ${clauses.join(" AND ")} AND "status" IN (${EXPIRABLE_LIST}) AND "createdAt" <= ? RETURNING "id"`)
+    .bind(...bind)
+    .first<{ id: string }>();
+  return Boolean(updated);
+}
 
 let lastSweepAt = 0;
 
@@ -50,6 +71,7 @@ export async function sweepExpiredOrders(options?: { env?: CloudflareEnv; limit?
 
   let expired = 0;
   for (const row of stale.results ?? []) {
+    // Shared semantics with `expireOrderIfStale` (same eligible set + deadline).
     const updated = await db
       .prepare(`UPDATE "Order" SET "status" = 'expired', "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ? AND "status" IN (${EXPIRABLE_LIST}) AND "createdAt" <= ? RETURNING "id"`)
       .bind(row.id, cutoff)
