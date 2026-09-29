@@ -294,3 +294,19 @@ Changed: `src/app/admin/(store)/stores/manage-client.tsx` (suspend bug fix), `sr
 **Verification:** `npm test` 25/25; `tsc` pass; `lint` pass (one pre-existing warning); `npm run build` pass; `npm run verify:deps` pass; `npm run verify:worker-runtime` pass (all routes 200, no fatal signatures, no orphaned processes); `git diff --check` clean; `npm audit` 3 high/3 moderate/0 critical (unchanged). No production deploy required or performed — leaves `a5cc3fb0` untouched.
 
 **KNOWN NON-FATAL LIMITATION:** the PPR resume mismatch / React #419 / Cache Components `setTimeout` warning remain by design under the current known-good runtime. Do not redeploy to silence them.
+
+## Order lifecycle and abandoned-inventory audit (2026-09-29)
+
+**Scope:** audit and design only. No application, schema or production change. Detail: `docs/ORDER-LIFECYCLE.md`.
+
+**Current state machine.** Creation status is `sent_to_whatsapp` (set by `POST /api/orders`). Vendor/status changes go through the store-scoped compare-and-set `updateOrder` action, gated by `canTransitionOrderStatus`: `sent_to_whatsapp → pending|confirmed|cancelled`; `pending → confirmed|cancelled`; `confirmed → shipped|cancelled`; `shipped → delivered`; `delivered` and `cancelled` terminal. Stock is **reserved at creation** by the `0004` `OrderItem` insert trigger inside the same D1 batch; restored **exactly once** on first transition to `cancelled` by `0012`; `0015` blocks cancelling shipped/delivered; `0016`/`0017` enforce tenancy and eligibility. There is no `expired` status, no expiry field, no acceptance timestamp, no WhatsApp-handoff tracking, no customer cancellation, and no cron. `paymentStatus` is vendor-reported only.
+
+**Failure mode.** Because the only release path is a vendor cancellation, an order the customer never completes holds stock indefinitely. It cannot be quantified from current data because no handoff event is recorded; production currently has 10 orders / 0 cancelled.
+
+**Options compared** (docs/ORDER-LIFECYCLE.md §4): A reserve-until-cancel; B auto-expire; C reserve-on-confirm (**high oversell risk**); D short window + accept-or-release (B tuned). Recommended model **if** auto-expiry is chosen: Option D with a trigger-based atomic `expired` transition mirroring `0012`, a scope guard so only `sent_to_whatsapp`/`pending` can expire, a reopen guard, a `(status, createdAt)` index, and a per-child-order idempotent sweep.
+
+**Design validation.** `tests/order-expiry-design.test.mjs` (8 tests, in-memory SQLite, not applied to production) proves the proposed triggers/sweep: at-most-once restore, idempotent repeated sweep, only-unconfirmed-can-expire, expired-not-reopenable + fresh stock required, multi-vendor isolation, and the accept/expiry and cancel/expiry races (5 iterations each). The tests caught two required refinements: the scope guard must exempt `OLD='expired'` (idempotent re-run), and customer cancellation must be status-eligible so a racing cancel after expiry matches nothing.
+
+**Owner decisions required before any implementation** (docs/ORDER-LIFECYCLE.md §6): adopt expiry or keep A; window length and start point; handoff tracking; customer cancellation scope; vendor rejection reasons; keep/remove vendor payment reporting; explicit Accept; expired-order visibility. **No lifecycle code or migration is produced until these are answered.**
+
+**Verification:** `npm test` 33/33 (8 new design tests); `tsc`/`lint`/`build`/`verify:deps`/`verify:worker-runtime` pass; `git diff --check` clean; `npm audit` unchanged. No deploy.
