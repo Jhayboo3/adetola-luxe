@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Noto_Serif, Montserrat } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import SiteChrome from "@/components/layout/SiteChrome";
 import Providers from "@/components/layout/Providers";
 import Toast from "@/components/ui/Toast";
 import ScrollRestorer from "@/components/layout/ScrollRestorer";
@@ -36,10 +35,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col antialiased">
         <Suspense fallback={null}>
           <Providers>
-            <Header />
+            <SiteChrome>
+              <main className="flex-1">{children}</main>
+            </SiteChrome>
             <ScrollRestorer />
-            <main className="flex-1">{children}</main>
-            <Footer />
             <Toast />
           </Providers>
         </Suspense>

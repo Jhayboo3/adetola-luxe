@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { connection } from "next/server";
-import { cacheLife } from "next/cache";
 import HeroSection from "@/components/home/HeroSection";
 import ProductCarousel, { type CarouselProduct } from "@/components/home/ProductCarousel";
 import { prisma } from "@/lib/prisma";
@@ -23,8 +22,6 @@ function toCarousel(item: { id: string; name: string; slug: string; price: numbe
 }
 
 async function getHomeData() {
-  "use cache: remote";
-  cacheLife({ revalidate: 300, expire: 3600 });
   const baseWhere = { published: true, stock: { gt: 0 }, store: { status: "approved" } };
   const include = {
     store: { select: { slug: true, name: true, logo: true } },
@@ -33,55 +30,36 @@ async function getHomeData() {
   const [stores, recent, featured] = await Promise.all([
     prisma.store.findMany({
       where: { status: "approved" },
-      orderBy: { createdAt: "asc" },
-      include: { _count: { select: { products: true } } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 8,
+      include: { _count: { select: { products: { where: { published: true, stock: { gt: 0 } } } } } },
     }),
     prisma.product.findMany({
       where: baseWhere,
       orderBy: { createdAt: "desc" },
-      take: 60,
+      take: 10,
       include,
     }),
     prisma.product.findMany({
       where: { ...baseWhere, featured: true },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: 10,
       include,
     }),
   ]);
 
-  const seen = new Set<string>();
-  const allProducts = [...featured, ...recent]
-    .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-  return { stores, allProducts };
+  return { stores, recent, featured };
 }
 
 async function HomeContent() {
   await connection();
-  const { stores, allProducts } = await getHomeData();
-
-  const newArrivals: CarouselProduct[] = allProducts.slice(0, 10).map(toCarousel);
-  const trending: CarouselProduct[] = allProducts.filter((p) => p.featured).slice(0, 10).map(toCarousel);
-
-  // Group products into marketplace category sections (across all stores).
-  const byCategory = new Map<string, { name: string; slug: string; products: CarouselProduct[] }>();
-  for (const product of allProducts) {
-    const name = product.category?.name ?? "Other";
-    const slug = product.category?.slug ?? "other";
-    if (!byCategory.has(name)) byCategory.set(name, { name, slug, products: [] });
-    const bucket = byCategory.get(name)!;
-    if (bucket.products.length < 10) bucket.products.push(toCarousel(product));
-  }
+  const { stores, recent, featured } = await getHomeData();
+  const newArrivals: CarouselProduct[] = recent.map(toCarousel);
+  const featuredProducts: CarouselProduct[] = featured.map(toCarousel);
 
   return (
     <>
-      <HeroSection
-        storeCount={stores.length}
-        productCount={allProducts.length}
-        stores={stores.map((s) => ({ name: s.name, slug: s.slug, logo: s.logo }))}
-      />
+      <HeroSection />
 
       {/* Marketplace store directory */}
       <section className="py-8 md:py-12">
@@ -111,12 +89,8 @@ async function HomeContent() {
         </div>
       </section>
 
-      <ProductCarousel title="New Arrivals" href="/shop" products={newArrivals} />
-      {trending.length > 0 && <ProductCarousel title="Trending" href="/shop" viewAllLabel="View All" products={trending} />}
-
-      {[...byCategory.values()].map((section) => (
-        <ProductCarousel key={section.slug} title={section.name} products={section.products} />
-      ))}
+      <ProductCarousel title="New arrivals" href="/shop" products={newArrivals} />
+      {featuredProducts.length > 0 && <ProductCarousel title="Featured by stores" href="/shop" viewAllLabel="View all" products={featuredProducts} />}
     </>
   );
 }

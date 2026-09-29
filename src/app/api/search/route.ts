@@ -4,7 +4,7 @@ import { parseJsonArray } from "@/lib/utils";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const q = searchParams.get("q")?.trim() ?? "";
+  const q = (searchParams.get("q") ?? "").trim().replace(/\s+/g, " ").slice(0, 80);
   if (!q) return Response.json({ products: [], stores: [], categories: [] });
 
   try {
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
           ],
         },
         take: 6,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: {
           id: true,
           name: true,
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         where: { name: { contains: q }, store: { status: "approved" } },
         take: 4,
         orderBy: { name: "asc" },
-        select: { slug: true, name: true, store: { select: { slug: true } } },
+        select: { id: true, slug: true, name: true, store: { select: { slug: true, name: true } } },
       }),
     ]);
 

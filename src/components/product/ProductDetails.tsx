@@ -51,14 +51,14 @@ export default function ProductDetails({ product, storeSlug, storeName }: { prod
   return (
     <div className="py-10 md:py-16">
       <div className="mx-auto max-w-[1200px] px-8">
-        <Link href={backHref} className="mb-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-muted no-underline">&larr; Back to {storeSlug ? "Store" : "Archive"}</Link>
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-[60%_40%]">
+        <Link href={backHref} className="mb-6 inline-block font-body text-[11px] uppercase tracking-[2px] text-muted no-underline">&larr; Back to {storeSlug ? "store" : "marketplace"}</Link>
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:gap-12">
           <ImageGallery images={product.images} productName={product.name} />
           <div className="md:sticky md:top-8 md:self-start">
             <p className="font-body text-[11px] font-medium uppercase tracking-[2px] text-primary">{product.category}</p>
             <h1 className="mt-3 font-heading text-[28px] font-medium">{product.name}</h1>
-            <p className="mt-2 font-heading text-[18px] text-gold">{formatPrice(product.price)}</p>
-            <p className="mt-6 font-serif text-[16px] leading-relaxed text-muted">{product.description}</p>
+            <p className="mt-2 font-heading text-[18px] text-primary-dark">{formatPrice(product.price)}</p>
+            {storeSlug && storeName && <Link href={`/${storeSlug}`} className="mt-3 inline-block font-body text-[13px] text-primary underline underline-offset-4">Sold by {storeName}</Link>}
             {product.sizes.length > 0 && <div className="mt-8"><p className="mb-3 font-body text-[11px] font-medium uppercase tracking-[2px]">Size</p><SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} /></div>}
             {hasColorOptions && <div className="mt-8"><p className="mb-3 font-body text-[11px] font-medium uppercase tracking-[2px]">Color</p><div className="flex flex-wrap gap-2">{product.colors.map((color) => <button type="button" key={color} onClick={() => setSelectedColor(color)} className={`rounded-full border px-4 py-2 font-body text-[11px] ${selectedColor === color ? "border-primary bg-primary text-white" : "border-line"}`}>{color}</button>)}</div></div>}
             <p className="mt-8 font-body text-[11px] text-muted">{soldOut ? "Sold Out" : product.stock > 5 ? "In Stock" : `Only ${product.stock} left`}</p>
@@ -80,8 +80,13 @@ export default function ProductDetails({ product, storeSlug, storeName }: { prod
                 {soldOut ? "Sold Out" : added ? "Added to Cart ✓" : quantity > 1 ? `Add ${quantity} to Cart` : "Add to Cart"}
               </Button>
             </div>
+            {product.description && <section className="mt-8 border-t border-line pt-6"><h2 className="font-body text-[12px] font-semibold uppercase tracking-[1px]">About this product</h2><p className="mt-3 font-body text-[14px] leading-relaxed text-muted">{product.description}</p></section>}
           </div>
         </div>
+      </div>
+      <div className="fixed inset-x-0 z-30 flex items-center gap-3 border-t border-line bg-white px-4 py-2 shadow-[0_-4px_18px_rgba(15,42,34,0.08)] md:hidden" style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom))" }}>
+        <span className="shrink-0 font-heading text-[15px]">{formatPrice(product.price)}</span>
+        <Button type="button" fullWidth onClick={handleAdd} disabled={soldOut || (hasColorOptions && !selectedColor)} className="min-h-11 px-3 text-[11px]">{soldOut ? "Sold out" : added ? "Added ✓" : "Add to cart"}</Button>
       </div>
     </div>
   );

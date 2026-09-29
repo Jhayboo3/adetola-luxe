@@ -49,6 +49,9 @@ body {
 .cta-danger:hover { background: #b91c1c; color: var(--color-white); }
 .cta-primary:active, .cta-secondary:active, .cta-danger:active { transform: scale(0.98); }
 .cta-primary:focus-visible, .cta-secondary:focus-visible, .cta-danger:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+/* Keyboard focus must stay visible even where components set `outline-none` for
+   pointer users. Unlayered so it wins over Tailwind's layered utilities. */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
 .cta-primary:disabled, .cta-secondary:disabled, .cta-danger:disabled { cursor: not-allowed; opacity: 0.45; box-shadow: none; }
 
 @theme inline {

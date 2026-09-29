@@ -23,10 +23,10 @@ const legalLinks = [
 function FooterColumn({ title, links }: { title: string; links: { href: string; label: string }[] }) {
   return (
     <div>
-      <h4 className="mb-5 flex items-center gap-2 font-body text-[11px] font-semibold uppercase tracking-[2px] text-gold">
+      <h2 className="mb-5 flex items-center gap-2 font-body text-[11px] font-semibold uppercase tracking-[2px] text-gold">
         <span className="h-[2px] w-5 bg-gold" />
         {title}
-      </h4>
+      </h2>
       <ul className="space-y-3">
         {links.map((link) => (
           <li key={link.label}>
@@ -88,10 +88,10 @@ export default function Footer() {
 
           {/* Contact */}
           <div className="md:col-span-2">
-            <h4 className="mb-5 flex items-center gap-2 font-body text-[11px] font-semibold uppercase tracking-[2px] text-gold">
+            <h2 className="mb-5 flex items-center gap-2 font-body text-[11px] font-semibold uppercase tracking-[2px] text-gold">
               <span className="h-[2px] w-5 bg-gold" />
               Contact
-            </h4>
+            </h2>
             <div className="space-y-4">
               <a
                 href="tel:+2348162141002"
@@ -109,7 +109,7 @@ export default function Footer() {
                 <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/40 text-gold transition-colors group-hover:bg-gold group-hover:text-[#0F2A22]">
                   <svg aria-hidden="true" viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></svg>
                 </span>
-                <span>jeremiahoshiokhame@gmail.com</span>
+                <span className="min-w-0 break-all">jeremiahoshiokhame@gmail.com</span>
               </a>
             </div>
             <div className="mt-6 rounded-xl border border-gold/25 bg-gold/10 p-4">
@@ -124,7 +124,7 @@ export default function Footer() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 px-8 py-6 md:flex-row">
-          <p className="font-body text-[11px] text-white/45">
+          <p className="font-body text-[11px] text-white/75">
             &copy; {2026} Larkvine. All rights reserved.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">

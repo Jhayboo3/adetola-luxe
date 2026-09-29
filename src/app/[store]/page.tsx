@@ -1,84 +1,40 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { cacheLife } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray } from "@/lib/utils";
 import StoreHeader from "@/components/store/StoreHeader";
 import StoreDetails from "@/components/store/StoreDetails";
 import ProductGrid from "@/components/product/ProductGrid";
 
-async function getStoreFront(slug: string) {
-  "use cache: remote";
-  cacheLife({ revalidate: 300, expire: 3600 });
-
-  const store = await prisma.store.findUnique({ where: { slug } });
-  if (!store) return null;
-
-  const [products, categories] = await Promise.all([
-    prisma.product.findMany({
-      where: { storeId: store.id, published: true },
-      orderBy: { createdAt: "desc" },
-      include: { category: true },
-    }),
-    prisma.category.findMany({
-      where: { storeId: store.id },
-      orderBy: { name: "asc" },
-      select: { name: true, slug: true },
-    }),
-  ]);
-
-  const mapped = (list: typeof products) =>
-    list.map((product) => ({
-      ...product,
-      createdAt: product.createdAt.toISOString(),
-      updatedAt: product.updatedAt.toISOString(),
-      images: parseJsonArray(product.images),
-      sizes: parseJsonArray(product.sizes),
-      colors: product.colorSelectable ? parseJsonArray(product.colors) : [],
-    }));
-
-  const available = products.filter((p) => p.stock > 0);
-  const soldOut = products.filter((p) => p.stock <= 0);
-
-  return {
-    store: { ...store, createdAt: store.createdAt.toISOString(), updatedAt: store.updatedAt.toISOString() },
-    products: mapped(products),
-    available: mapped(available),
-    soldOut: mapped(soldOut),
-    categories,
-  };
-}
-
-async function getStoreMeta(slug: string) {
-  "use cache: remote";
-  cacheLife({ revalidate: 300, expire: 3600 });
-  return prisma.store.findUnique({ where: { slug }, select: { name: true, description: true } });
-}
+const STORE_PAGE_SIZE = 24;
 
 export async function generateMetadata({ params }: { params: Promise<{ store: string }> }): Promise<Metadata> {
   const { store: slug } = await params;
-  const store = await getStoreMeta(slug);
-  if (!store) return { title: "Store not found" };
+  const store = await prisma.store.findUnique({ where: { slug }, select: { name: true, description: true, status: true } });
+  if (!store || store.status !== "approved") return { title: "Store not found" };
   return { title: `${store.name} — Storefront`, description: store.description || `Shop ${store.name}'s curated collection.` };
 }
 
-export default async function StorefrontPage({ params, searchParams }: { params: Promise<{ store: string }>; searchParams: Promise<{ category?: string }> }) {
+export default async function StorefrontPage({ params, searchParams }: { params: Promise<{ store: string }>; searchParams: Promise<{ category?: string | string[]; page?: string | string[] }> }) {
   const { store: slug } = await params;
-  const { category } = await searchParams;
-  const data = await getStoreFront(slug);
-  // Approval is decided from a FRESH database read, never the cached product
-  // snapshot: a stale cache entry must not expose a pending/suspended store.
-  const liveStore = await prisma.store.findUnique({ where: { slug }, select: { status: true } });
-  if (!data || !liveStore || liveStore.status !== "approved") notFound();
-
-  const { store, available, soldOut, categories } = data;
-  // Category slugs are only unique per store, so the chip links must stay on
-  // this storefront. Unknown/foreign categories fall back to the full grid.
-  const activeCategory = categories.some((cat) => cat.slug === category) ? category : null;
-  const matchesCategory = (product: { category?: { slug: string } | null }) => !activeCategory || product.category?.slug === activeCategory;
-  const filteredAvailable = available.filter(matchesCategory);
-  const filteredSoldOut = soldOut.filter(matchesCategory);
+  const query = await searchParams;
+  const category = typeof query.category === "string" ? query.category : "";
+  const requestedPage = typeof query.page === "string" ? Number(query.page) : 1;
+  const page = Number.isSafeInteger(requestedPage) ? Math.min(1000, Math.max(1, requestedPage)) : 1;
+  const store = await prisma.store.findUnique({ where: { slug } });
+  if (!store || store.status !== "approved") notFound();
+  const categories = await prisma.category.findMany({ where: { storeId: store.id }, orderBy: { name: "asc" }, take: 100, select: { name: true, slug: true } });
+  const activeCategory = categories.some((item) => item.slug === category) ? category : null;
+  const categoryWhere = activeCategory ? { category: { slug: activeCategory } } : {};
+  const [availableRows, soldOutRows] = await Promise.all([
+    prisma.product.findMany({ where: { storeId: store.id, published: true, stock: { gt: 0 }, ...categoryWhere }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (page - 1) * STORE_PAGE_SIZE, take: STORE_PAGE_SIZE + 1 }),
+    page === 1 ? prisma.product.findMany({ where: { storeId: store.id, published: true, stock: { lte: 0 }, ...categoryWhere }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 4 }) : Promise.resolve([]),
+  ]);
+  const hasNext = availableRows.length > STORE_PAGE_SIZE;
+  const mapped = (product: (typeof availableRows)[number]) => ({ ...product, images: parseJsonArray(product.images), sizes: parseJsonArray(product.sizes), colors: product.colorSelectable ? parseJsonArray(product.colors) : [] });
+  const filteredAvailable = availableRows.slice(0, STORE_PAGE_SIZE).map(mapped);
+  const filteredSoldOut = soldOutRows.map(mapped);
 
   return (
     <>
@@ -150,7 +106,7 @@ export default async function StorefrontPage({ params, searchParams }: { params:
           <div className="mb-4 h-[2px] w-12 bg-gold" />
           <h2 className="font-heading text-[26px] font-medium text-black">Shop the Collection</h2>
           <p className="mt-2 font-body text-[13px] text-muted">
-            {filteredAvailable.length} {filteredAvailable.length === 1 ? "product" : "products"} available
+            {filteredAvailable.length} {filteredAvailable.length === 1 ? "product" : "products"} on page {page}
             {activeCategory ? ` in ${categories.find((cat) => cat.slug === activeCategory)?.name}` : ""}
           </p>
         </div>
@@ -164,7 +120,7 @@ export default async function StorefrontPage({ params, searchParams }: { params:
         )}
 
         {/* New arrivals */}
-        {filteredAvailable.length > 4 && (
+        {page === 1 && filteredAvailable.length > 4 && (
           <>
             <div className="mt-16 mb-6">
               <div className="mb-4 h-[2px] w-12 bg-gold" />
@@ -185,6 +141,7 @@ export default async function StorefrontPage({ params, searchParams }: { params:
             <ProductGrid products={filteredSoldOut} storeSlug={slug} />
           </div>
         )}
+        <nav aria-label="Store product pages" className="mt-12 flex justify-between gap-4">{page > 1 ? <Link href={`/${slug}${activeCategory ? `?category=${encodeURIComponent(activeCategory)}&page=${page - 1}` : `?page=${page - 1}`}`} className="cta-secondary px-5 py-3">Previous</Link> : <span />}{hasNext && <Link href={`/${slug}?${new URLSearchParams({ ...(activeCategory ? { category: activeCategory } : {}), page: String(page + 1) })}`} className="cta-secondary px-5 py-3">Next</Link>}</nav>
       </div>
     </>
   );

@@ -8,7 +8,7 @@ import { formatPrice } from "@/lib/utils";
 
 interface SuggestionProduct { id: string; name: string; slug: string; price: number; image: string | null; store: { slug: string; name: string } }
 interface SuggestionStore { id: string; name: string; slug: string; logo: string | null }
-interface SuggestionCategory { slug: string; name: string; store: { slug: string } }
+interface SuggestionCategory { id: string; slug: string; name: string; store: { slug: string; name: string } }
 
 export default function SearchBar() {
   const [open, setOpen] = useState(false);
@@ -17,30 +17,43 @@ export default function SearchBar() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setOpen(false); return; }
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>('input, a[href], button:not([disabled])');
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    const trigger = triggerRef.current;
+    return () => { document.removeEventListener("keydown", onKeyDown); trigger?.focus(); };
   }, [open]);
 
   useEffect(() => {
     if (!open || !query.trim()) return;
+    const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`, { signal: controller.signal });
         const data = await res.json();
-        setResults(data);
+        if (!controller.signal.aborted) setResults(data);
       } catch {
-        setResults({ products: [], stores: [], categories: [] });
+        if (!controller.signal.aborted) setResults({ products: [], stores: [], categories: [] });
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }, 200);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, [open, query]);
 
   const onQueryChange = (value: string) => {
@@ -64,18 +77,20 @@ export default function SearchBar() {
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Search the marketplace"
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line text-black transition-colors hover:border-primary hover:text-primary"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-line px-3 text-black transition-colors hover:border-primary hover:text-primary lg:min-w-[170px] lg:justify-start"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <span className="hidden font-body text-[11px] text-muted lg:inline">Search products</span>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-[95]" role="presentation">
           <button type="button" className="absolute inset-0 h-full w-full cursor-default bg-black/45 backdrop-blur-[2px]" onClick={() => setOpen(false)} aria-label="Close search" />
-          <div className="absolute inset-x-0 top-0 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Search the marketplace">
+          <div ref={dialogRef} className="absolute inset-x-0 top-0 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Search the marketplace">
             <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-8">
               <div className="flex items-center gap-3">
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 fill-none stroke-black" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -123,8 +138,8 @@ export default function SearchBar() {
                     <p className="mb-3 font-body text-[10px] font-bold uppercase tracking-[2px] text-muted">Categories</p>
                     <div className="space-y-1">
                       {results.categories.map((c, i) => (
-                        <Link key={`${c.store.slug}-${c.slug}-${i}`} href={`/${c.store.slug}`} onClick={() => setOpen(false)} className="block rounded-xl p-2 font-heading text-[13px] text-black no-underline transition-colors hover:bg-[#F5F0E9]">
-                          {c.name}
+                        <Link key={`${c.id}-${i}`} href={`/shop?category=${encodeURIComponent(c.id)}`} onClick={() => setOpen(false)} className="block rounded-xl p-2 font-heading text-[13px] text-black no-underline transition-colors hover:bg-[#F5F0E9]">
+                          {c.name} <span className="font-body text-[11px] text-muted">· {c.store.name}</span>
                         </Link>
                       ))}
                       {!loading && results.categories.length === 0 && <p className="px-2 font-body text-[12px] text-muted">No category matches.</p>}

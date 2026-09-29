@@ -1,77 +1,45 @@
-import ProductGrid from "@/components/product/ProductGrid";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { displayColor, parseJsonArray } from "@/lib/utils";
-import { defaultStore } from "@/lib/store";
+import { CATALOG_PAGE_SIZE, catalogHref, catalogOrderBy, catalogWhere, parseCatalogParams } from "@/lib/catalog";
+import ProductCard from "@/components/product/ProductCard";
+import CatalogFilters from "@/components/catalog/CatalogFilters";
 
-
-export default async function ShopPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string }> }) {
-  const params = await searchParams;
-  const query = params.q?.trim() ?? "";
-  const category = params.category?.trim() ?? "";
-  const store = await defaultStore();
-  const [records, categories] = await Promise.all([
+export default async function ShopPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const filters = parseCatalogParams(await searchParams);
+  const [rows, categories, stores] = await Promise.all([
     prisma.product.findMany({
-      where: {
-        storeId: store.id,
-        published: true,
-        stock: { gt: 0 },
-        AND: [
-          query ? { OR: [{ name: { contains: query } }, { description: { contains: query } }] } : {},
-          category ? { OR: [{ category: { slug: category } }, { category: { parent: { slug: category } } }] } : {},
-        ],
-      },
-      orderBy: { createdAt: "desc" },
+      where: catalogWhere(filters),
+      orderBy: catalogOrderBy(filters.sort),
+      skip: (filters.page - 1) * CATALOG_PAGE_SIZE,
+      take: CATALOG_PAGE_SIZE + 1,
+      include: { store: { select: { name: true, slug: true, logo: true } } },
     }),
-    prisma.category.findMany({ where: { storeId: store.id }, orderBy: [{ parentId: "asc" }, { name: "asc" }], select: { name: true, slug: true, parent: { select: { name: true } } } }),
+    prisma.category.findMany({ where: { store: { status: "approved" } }, orderBy: [{ name: "asc" }, { id: "asc" }], take: 100, select: { id: true, name: true, store: { select: { name: true } } } }),
+    prisma.store.findMany({ where: { status: "approved" }, orderBy: [{ name: "asc" }, { id: "asc" }], take: 100, select: { name: true, slug: true } }),
   ]);
-  const products = records.map((product) => ({
+  const hasNext = rows.length > CATALOG_PAGE_SIZE;
+  const products = rows.slice(0, CATALOG_PAGE_SIZE).map((product) => ({
     ...product,
     images: parseJsonArray(product.images),
     sizes: parseJsonArray(product.sizes),
     colors: product.colorSelectable ? parseJsonArray(product.colors).map(displayColor) : [],
   }));
-  const selectedCategory = categories.find((item) => item.slug === category);
+  const selectedCategory = categories.find((category) => category.id === filters.category);
+  const selectedStore = stores.find((store) => store.slug === filters.store);
   return (
-    <div className="py-16 md:py-20">
-      <div className="mx-auto max-w-[1200px] px-8">
-        <h1 className="mt-4 font-heading text-[28px] font-medium text-black">
-          {selectedCategory?.name ?? "The Archive"}
-        </h1>
+    <div className="py-10 md:py-16">
+      <div className="mx-auto max-w-[1200px] px-6 sm:px-8">
+        <h1 className="font-heading text-[28px] font-medium text-black">Shop the marketplace</h1>
+        <p className="mt-2 font-body text-[13px] text-muted">Browse available products from approved Larkvine stores.</p>
 
-        <p className="mt-2 font-body text-[13px] text-muted">
-          {products.length} {products.length === 1 ? "product" : "products"} displayed{query ? ` for “${query}”` : ""}
-        </p>
+        <CatalogFilters filters={filters} categories={categories} stores={stores} />
 
-        <form id="catalog-search" className="mt-8 flex max-w-2xl gap-3 scroll-mt-28">
-          {category && <input type="hidden" name="category" value={category} />}
-          <label htmlFor="shop-search" className="sr-only">Search clothing</label>
-          <input id="shop-search" name="q" type="search" defaultValue={query} placeholder="Search dresses, kaftans, accessories..." className="min-w-0 flex-1 rounded-full border border-line bg-white px-5 py-3 font-body text-[13px] outline-none transition-colors focus:border-primary" />
-          <button className="cta-primary min-h-11 px-6 py-3">Search</button>
-          {query && <Link href={category ? `/shop?category=${category}` : "/shop"} className="self-center font-body text-[11px] text-muted no-underline">Clear</Link>}
-        </form>
-
-        <div id="categories" className="mt-10 flex scroll-mt-28 flex-wrap gap-3">
-          {[{ name: "All", slug: "" }, ...categories].map((cat) => (
-            <Link
-              key={cat.slug || "all"}
-              href={`/shop${cat.slug || query ? `?${new URLSearchParams({ ...(cat.slug ? { category: cat.slug } : {}), ...(query ? { q: query } : {}) }).toString()}` : ""}`}
-              className={`font-body text-[11px] font-medium uppercase tracking-[2px] transition-colors ${
-                category === cat.slug
-                  ? "text-primary"
-                  : "text-muted hover:text-primary"
-              }`}
-            >
-              {"parent" in cat && cat.parent ? `${cat.parent.name} → ${cat.name}` : cat.name}
-            </Link>
-          ))}
-        </div>
-
-        <div className="mt-10">
-          <ProductGrid products={products} />
-        </div>
-
-        {products.length === 0 && <div className="py-16 text-center"><p className="font-heading text-[18px] text-black">{category && !query ? "No products are currently available in this category." : "No matching products found."}</p><p className="mt-2 font-body text-[13px] text-muted">Try another name or browse all collections.</p><Link href="/shop" className="mt-5 inline-block font-body text-[11px] uppercase tracking-[2px] text-primary">View all clothing</Link></div>}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 text-[12px] text-muted"><p>{products.length} products on page {filters.page}{hasNext ? " · more available" : ""}{filters.q ? ` for “${filters.q}”` : ""}</p>{selectedCategory && <p>Category: {selectedCategory.store.name} / {selectedCategory.name}</p>}{selectedStore && <p>Store: {selectedStore.name}</p>}</div>
+        <h2 className="sr-only">Products</h2>
+        {products.length ? <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">{products.map((product) => <ProductCard key={product.id} product={product} storeSlug={product.store.slug} storeName={product.store.name} storeLogo={product.store.logo} />)}</div>
+          : <div className="mt-10 rounded-2xl border border-line px-6 py-16 text-center"><p className="font-heading text-[19px]">No products matched your filters.</p><p className="mt-2 text-[13px] text-muted">Try another keyword, store or price range.</p><Link href="/shop" className="mt-5 inline-block text-[12px] underline">Browse all products</Link></div>}
+        <nav aria-label="Catalog pages" className="mt-12 flex justify-between gap-4 text-[13px]">{filters.page > 1 ? <Link href={catalogHref(filters, { page: filters.page - 1 })} className="cta-secondary px-5 py-3">Previous</Link> : <span />}{hasNext && <Link href={catalogHref(filters, { page: filters.page + 1 })} className="cta-secondary px-5 py-3">Next</Link>}</nav>
       </div>
     </div>
   );
